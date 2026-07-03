@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { BASE, PORT, E2E_HOME, REPO_ROOT, FAKE_CLAUDE } from "./paths";
+import { BASE, PORT, E2E_HOME, E2E_SESSIONS, REPO_ROOT, FAKE_CLAUDE } from "./paths";
 
 // Dedicated config for generating marketing/README screenshots. Reuses the e2e
 // daemon+fake-claude harness but at a larger, retina viewport, and only runs the
@@ -26,6 +26,6 @@ export default defineConfig({
     url: `${BASE}/api/health`,
     reuseExistingServer: false,
     timeout: 60_000,
-    env: { NOCTURNE_HOME: E2E_HOME, NOCTURNE_CLAUDE_PATH: FAKE_CLAUDE },
+    env: { NOCTURNE_HOME: E2E_HOME, NOCTURNE_CLAUDE_PATH: FAKE_CLAUDE, NOCTURNE_SESSIONS_DIR: E2E_SESSIONS },
   },
 });

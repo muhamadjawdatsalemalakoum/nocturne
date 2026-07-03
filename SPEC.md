@@ -303,11 +303,50 @@ GET    /api/runs?workflowId=…             → run list (status, cost, timings)
 GET    /api/runs/:id                      → full state incl. steps
 POST   /api/runs/:id/pause|resume|cancel
 POST   /api/runs/:id/approve              → {nodeId, approved, note}
+POST   /api/suggest                       → {hours?, max?, projectRoot?} → Retrace (§8)
 ```
 WebSocket `/ws`: server pushes `{type: run.updated|step.updated|run.log, …}` —
 drives live canvas run-mode. No client→server commands over WS (REST only).
 
-## 8. UI spec — the taste requirement
+## 8. Retrace — drafting workflows from your history
+
+**Goal.** Lower the blank-canvas barrier: instead of designing a workflow from scratch, let
+Nocturne read what you already did and propose reusable pipelines. Something that worked once —
+a client fix, a refactor→test loop, a review pass — becomes a saved workflow you can run
+perfectly every time, including on the days you're not focused.
+
+**Data source.** Claude Code writes every session to `~/.claude/projects/<slug>/<id>.jsonl`,
+one JSON event per line (`user` prompts, `assistant` messages with `tool_use` blocks + `model`,
+`timestamp`, `cwd`, `gitBranch`). Retrace reads these **locally, read-only**. Resolution order
+for the projects dir: `NOCTURNE_SESSIONS_DIR` → `CLAUDE_CONFIG_DIR/projects` → `~/.claude/projects`
+(the first two exist for tests/preview).
+
+**Pipeline** (`packages/engine/{sessions,suggest}.ts`):
+1. **Scan** — `gatherRecentSessions` lists candidate transcripts by mtime within the window
+   (default 24 h, clamped 1–168) before opening any file; skips the rest.
+2. **Distill** — `digestTranscript` streams each file line-by-line (bounded) into a compact
+   `SessionDigest`: redacted+truncated user prompts (harness/sidechain noise dropped), tool
+   histogram, files touched, commands run, models used, timing. A session whose last event
+   predates the window is discarded.
+3. **Redact** — obvious secrets (`sk-ant-…`, `sk-…`, `AKIA…`, `gh[pousr]_…`, bearer tokens)
+   are masked in every digest **before** anything is sent to the model.
+4. **Draft** — `suggestWorkflows` builds one meta-prompt (prefixed with the `NOCTURNE_RETRACE_V1`
+   sentinel), runs it through the same subscription-auth CLI adapter the engine uses (no tools,
+   `dontAsk`), and asks for workflow *intent* as JSON.
+5. **Compile & validate** — the model never sets ids/positions/edges. `compileDraft` builds a
+   positioned, wired, linear graph, auto-injects step handoffs (`{{steps.<prev>.output}}`),
+   strips any model-authored placeholders, and runs it through `normalizeOrThrow`. Invalid
+   drafts are dropped, so every suggestion is a runnable, portable `.nocturne.json`.
+
+**Privacy & auth.** Transcripts never leave the machine except as the redacted digest sent to
+your own Claude subscription (the same call any Claude Code usage makes). No API-key metering; the
+child env is sanitized identically to run steps.
+
+**UI.** A **Retrace** button in the toolbar opens a modal that POSTs `/api/suggest` and lists
+each suggestion (name, description, rationale, step count) with **Open on canvas** and **Save to
+library**. Empty/error states carry a friendly note (no recent sessions, agent hit a limit, …).
+
+## 9. UI spec — the taste requirement
 
 **Stack:** Vite, React 19, TypeScript, `@xyflow/react` (infinite canvas), zustand
 (+ zundo for undo/redo), Tailwind v4, lucide-react icons, Inter variable
@@ -355,7 +394,7 @@ Light theme = same tokens re-mapped; toggle in TopBar. No pure black/white anywh
 - Import: button **and** drag-a-file-onto-canvas → review dialog (§6) → adds to library.
 - Share = the file. README shows the "post your workflow" pattern.
 
-## 9. Testing strategy (TDD)
+## 10. Testing strategy (TDD)
 
 Layers, all runnable via `npm test` at root:
 
@@ -365,7 +404,9 @@ Layers, all runnable via `npm test` at root:
 2. **engine unit (vitest):** limit-oracle parser against a fixture corpus of real
    error strings; wait scheduler with fake clock (incl. catch-up after "sleep");
    state-store atomicity (kill-between-writes simulation); env sanitization;
-   flag composition per node config.
+   flag composition per node config; **Retrace** transcript-digest (window filtering,
+   secret redaction, malformed-line resilience) and draft compile/validate against a
+   fake runner (invalid drafts dropped; no-session → note).
 3. **engine integration (vitest):** full runs against **fake-claude** — a Node script
    installed as the configured `claudePath`. Scenario files (JSON) script its
    behavior per invocation: succeed with text, emit rate-limit error with reset time,
@@ -382,16 +423,17 @@ Layers, all runnable via `npm test` at root:
 6. **live smoke (opt-in, `NOCTURNE_LIVE=1`):** 2-step haiku workflow through the real
    CLI. Never runs in CI.
 
-## 10. Milestones
+## 11. Milestones
 
 - **M1 (this build):** everything above marked v1 — core, engine, server, canvas UI,
-  import/export, limit-aware waits, approvals, tests green end to end, live-run verified.
+  import/export, limit-aware waits, approvals, Retrace (§8), tests green end to end,
+  live-run verified.
 - **M1.1:** Windows wake helper (`install-wake`), `UsageApiOracle`, light theme audit,
   `nocturne` npm publish, README + demo GIF, community-workflows folder.
 - **M2:** conditional nodes (LLM-judged with explicit rubric), per-run cost budgets,
   workflow gallery site, macOS/Linux wake helpers.
 
-## 11. Open items
+## 12. Open items
 
 - **Subscription-auth headless run — RESOLVED (verified, sourced).** `claude -p`
   (non-`--bare`) runs on Pro/Max OAuth with no API key and draws from the flat-rate

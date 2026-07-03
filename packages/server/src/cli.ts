@@ -6,6 +6,7 @@ import {
   Engine,
   RunStore,
   CliClaudeRunner,
+  WorkflowSuggester,
   loadConfig,
   nocturneHome,
 } from "@nocturne/engine";
@@ -43,6 +44,12 @@ async function main(): Promise<void> {
     onEvent: (ev) => broadcaster.broadcast(ev),
   });
 
+  // Retrace: reads the user's local Claude Code transcripts and drafts workflows
+  // from them, through the same subscription-auth CLI adapter the engine uses.
+  const suggester = new WorkflowSuggester({
+    runner: new CliClaudeRunner(config.claudePath, { oauthToken: config.oauthToken }),
+  });
+
   // resume anything left suspended/interrupted by a previous daemon (best-effort:
   // recovery must never prevent the server from coming up)
   try {
@@ -56,7 +63,7 @@ async function main(): Promise<void> {
   const staticDir = existsSync(path.join(uiDist, "index.html")) ? uiDist : undefined;
 
   const server = await startServer(
-    { engine, workflowStore, runStore, broadcaster, version: VERSION, staticDir },
+    { engine, workflowStore, runStore, broadcaster, suggester, version: VERSION, staticDir },
     port,
   );
 

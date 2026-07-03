@@ -111,6 +111,14 @@ export const IconPlus = svg(
     <line x1="5" y1="12" x2="19" y2="12" />
   </>,
 );
+// retrace — looking back over the night's trail: a counter-clockwise dial returning to a node
+export const IconRetrace = svg(
+  <>
+    <path d="M5 12 a7 7 0 1 1 2.2 5" />
+    <path d="M5 7.5 V12 H9.5" />
+    <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+  </>,
+);
 // template glyphs
 export const IconWrench = svg(<path d="M15 4 a4 4 0 0 0 -5 5 L4 15 l3 3 l6-6 a4 4 0 0 0 5-5 l-3 3 l-2-2 Z" />);
 export const IconSearch = svg(

@@ -1,10 +1,84 @@
 import { test, expect, type Page } from "@playwright/test";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { E2E_HOME, E2E_PROJECT, REPO_ROOT } from "./paths";
+import { E2E_HOME, E2E_PROJECT, E2E_SESSIONS, REPO_ROOT } from "./paths";
 
 const OUT = path.join(REPO_ROOT, "docs", "images");
 const sampleFile = path.join(REPO_ROOT, "e2e", "fixtures", "sample.nocturne.json");
+
+// Workflows the (fake) Retrace agent "drafts" from the seeded sessions below.
+const RETRACE_DRAFTS = {
+  workflows: [
+    {
+      name: "Client deliverable QA",
+      description: "Reproduce the report, fix it, prove it green, then pause for sign-off before shipping.",
+      rationale: "You did this by hand for a client twice this week — automate it so it's right every time.",
+      sourceSessions: ["sess-client"],
+      steps: [
+        { kind: "agent", title: "Reproduce & diagnose", prompt: "Reproduce the reported issue and summarize the root cause.", model: "sonnet", tools: ["Read", "Grep", "Bash"] },
+        { kind: "agent", title: "Fix", prompt: "Implement the fix for the diagnosed issue.", model: "sonnet", tools: ["Read", "Edit", "Write"] },
+        { kind: "agent", title: "Verify green", prompt: "Run the full test suite and confirm everything passes.", model: "haiku", tools: ["Read", "Bash"] },
+        { kind: "approval", message: "Review the diff and test output before it ships to the client." },
+        { kind: "agent", title: "Ship", prompt: "Commit the change and open a pull request.", model: "haiku", tools: ["Bash"] },
+      ],
+    },
+    {
+      name: "Overnight dependency upgrade",
+      description: "Bump dependencies, wait out the usage-limit reset, then fix the fallout.",
+      rationale: "Long-running upgrade work you kept restarting after hitting limits — let it wait and resume.",
+      sourceSessions: ["sess-deps"],
+      steps: [
+        { kind: "agent", title: "Upgrade & build", prompt: "Upgrade dependencies to their latest compatible versions and run the build.", model: "sonnet", tools: ["Read", "Edit", "Bash"] },
+        { kind: "wait" },
+        { kind: "agent", title: "Fix breakages", prompt: "Fix any type errors and test failures the upgrade introduced.", model: "sonnet", tools: ["Read", "Edit", "Bash"] },
+      ],
+    },
+    {
+      name: "PR review pass",
+      description: "Read the diff, review for bugs and edge cases, and write a tight summary.",
+      rationale: "A repeatable review routine from your recent sessions on the Cabs repo.",
+      sourceSessions: ["sess-review"],
+      steps: [
+        { kind: "agent", title: "Read the diff", prompt: "Read the current branch diff against main and list what changed.", model: "haiku", tools: ["Read", "Bash", "Grep"] },
+        { kind: "agent", title: "Review", prompt: "Review the diff for bugs, edge cases, and missing tests.", model: "opus", tools: ["Read", "Grep"] },
+        { kind: "agent", title: "Summarize", prompt: "Write a concise review summary with the top findings.", model: "haiku", tools: ["Read"] },
+      ],
+    },
+  ],
+};
+
+/** Seed a few realistic recent transcripts into the fake projects dir Retrace scans. */
+async function seedSessions(): Promise<void> {
+  const now = Date.now();
+  const iso = (minsAgo: number) => new Date(now - minsAgo * 60_000).toISOString();
+  const session = (
+    slug: string,
+    id: string,
+    cwd: string,
+    minsAgo: number,
+    prompts: string[],
+    tools: Array<{ name: string; file_path?: string; command?: string }>,
+  ) => ({
+    slug,
+    id,
+    lines: [
+      { type: "user", timestamp: iso(minsAgo), sessionId: id, cwd, gitBranch: "main", message: { role: "user", content: prompts[0] } },
+      { type: "assistant", timestamp: iso(minsAgo - 1), sessionId: id, cwd, message: { model: "claude-sonnet-4", content: tools.map((t) => ({ type: "tool_use", name: t.name, input: t.file_path ? { file_path: t.file_path } : t.command ? { command: t.command } : {} })) } },
+      ...(prompts[1] ? [{ type: "user", timestamp: iso(minsAgo - 2), sessionId: id, cwd, message: { role: "user", content: prompts[1] } }] : []),
+    ],
+  });
+  const sessions = [
+    session("D--Coding-Projects-Acme-Client", "sess-client", "D:/Coding Projects/Acme Client", 45, ["The client says checkout throws on empty cart — reproduce and fix it", "now make sure the tests pass before we ship"], [{ name: "Read", file_path: "src/checkout.ts" }, { name: "Edit", file_path: "src/checkout.ts" }, { name: "Bash", command: "npm test" }]),
+    session("D--Coding-Projects-Acme-Client", "sess-deps", "D:/Coding Projects/Acme Client", 180, ["upgrade all the dependencies and fix whatever breaks"], [{ name: "Edit", file_path: "package.json" }, { name: "Bash", command: "npm run build" }]),
+    session("D--Coding-Projects-Cabs-Taxi-Pool", "sess-review", "D:/Coding Projects/Cabs Taxi Pool", 320, ["review the open PR on the pricing branch for bugs"], [{ name: "Bash", command: "git diff main" }, { name: "Read", file_path: "src/pricing.ts" }]),
+    session("D--Coding-Projects-Lenis-Blog", "sess-blog", "D:/Coding Projects/Lenis Blog", 500, ["draft a launch post about the new editor"], [{ name: "Write", file_path: "posts/launch.md" }]),
+  ];
+  for (const s of sessions) {
+    const dir = path.join(E2E_SESSIONS, s.slug);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, `${s.id}.jsonl`), s.lines.map((l) => JSON.stringify(l)).join("\n") + "\n", "utf8");
+  }
+}
 
 async function shot(page: Page, name: string) {
   await page.screenshot({ path: path.join(OUT, name), animations: "disabled" });
@@ -24,12 +98,19 @@ async function startRun(page: Page) {
 test.beforeAll(async () => {
   await fs.mkdir(OUT, { recursive: true });
   await fs.mkdir(E2E_HOME, { recursive: true });
+  await seedSessions();
   // one scenario for the whole session: brief per-line delay so a "running" state is
   // catchable, plus tool activity for the live feed. Agent steps finish; wait/approval
-  // nodes still suspend their runs on their own.
+  // nodes still suspend their runs on their own. The Retrace rule matches the sentinel
+  // the suggester puts at the top of its meta-prompt and returns drafted workflows.
   await fs.writeFile(
     path.join(E2E_HOME, "scenario.json"),
-    JSON.stringify({ default: { ok: "Refactored the auth module; updated 3 tests, all green.", delayMs: 150, cost: 0.002, tools: ["Read src/auth.ts", "Edit src/auth.ts", "Bash npm test"] } }),
+    JSON.stringify({
+      rules: [
+        { match: { contains: "NOCTURNE_RETRACE_V1" }, responses: [{ ok: JSON.stringify(RETRACE_DRAFTS), cost: 0.021 }] },
+      ],
+      default: { ok: "Refactored the auth module; updated 3 tests, all green.", delayMs: 150, cost: 0.002, tools: ["Read src/auth.ts", "Edit src/auth.ts", "Bash npm test"] },
+    }),
   );
 });
 
@@ -99,4 +180,12 @@ test("capture all journeys", async ({ page }) => {
   await page.locator(".panel.right .panel-toggle").click();
   await page.waitForTimeout(300);
   await shot(page, "10-minimized.png");
+
+  // 11 — Retrace: workflows drafted from your recent Claude Code sessions
+  await page.goto("/");
+  await page.getByTestId("retrace-btn").click();
+  await expect(page.getByTestId("retrace-modal")).toBeVisible();
+  await expect(page.getByTestId("suggestion-0")).toBeVisible({ timeout: 30_000 });
+  await page.waitForTimeout(400);
+  await shot(page, "11-retrace.png");
 });

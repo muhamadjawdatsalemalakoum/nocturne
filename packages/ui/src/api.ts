@@ -50,7 +50,27 @@ export const api = {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ nodeId, approved, note }),
     }).then((r) => j<RunState>(r)),
+
+  suggest: (body: { hours?: number; max?: number; projectRoot?: string } = {}) =>
+    fetch("/api/suggest", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }).then((r) => j<SuggestResult>(r)),
 };
+
+export interface SuggestionItem {
+  workflow: Workflow;
+  rationale: string;
+  sourceSessions: string[];
+}
+export interface SuggestResult {
+  suggestions: SuggestionItem[];
+  sessionsScanned: number;
+  windowHours: number;
+  cost: number;
+  note?: string;
+}
 
 export interface ImportSummary {
   name: string;

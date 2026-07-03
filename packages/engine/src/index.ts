@@ -5,3 +5,5 @@ export * from "./claude.js";
 export * from "./store.js";
 export * from "./engine.js";
 export * from "./config.js";
+export * from "./sessions.js";
+export * from "./suggest.js";

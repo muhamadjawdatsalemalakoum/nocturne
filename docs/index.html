@@ -124,6 +124,7 @@
     </span>
     <span class="spacer"></span>
     <a class="nl" href="#features">Features</a>
+    <a class="nl" href="#retrace">Retrace</a>
     <a class="nl" href="#journey">How it works</a>
     <a class="nl" href="#start">Quick start</a>
     <a class="btn sm primary" href="https://github.com/muhamadjawdatsalemalakoum/nocturne">GitHub ★</a>
@@ -161,6 +162,7 @@
           <tr><td>Flat-rate subscription economics</td><td class="n">capped + metered</td><td class="y">yes</td><td class="noc y">yes</td></tr>
           <tr><td>Durable multi-step orchestration with waits + resume</td><td class="n">partial</td><td class="n">no</td><td class="noc y">yes</td></tr>
           <tr><td>Visual design surface</td><td class="n">no</td><td class="n">no</td><td class="noc y">yes</td></tr>
+          <tr><td>Turns your own session history into workflows</td><td class="n">no</td><td class="n">no</td><td class="noc y">yes</td></tr>
         </tbody>
       </table>
     </div>
@@ -254,6 +256,20 @@
       </div>
       <div class="shot"><img src="images/09-import-review.png" alt="The import review dialog" /></div>
     </div>
+
+    <div class="feature" id="retrace">
+      <div class="copy">
+        <div class="eyebrow">Retrace</div>
+        <h3>It writes your workflows for you</h3>
+        <p>The hardest part of automation is noticing what's worth automating. Click <strong>Retrace</strong> and Nocturne reads your <strong>last 24 hours of Claude Code sessions</strong> — locally, from <code>~/.claude/projects</code> — and drafts reusable workflows from what you actually did. Something good happened with a client? It becomes a workflow you can run, tune, and share, so you get it right every time.</p>
+        <ul>
+          <li>Reads transcripts on disk — nothing leaves your machine; secrets are redacted first</li>
+          <li>Runs on your subscription, the same CLI the engine uses</li>
+          <li>Every suggestion is compiled and schema-validated — open on canvas or save to library</li>
+        </ul>
+      </div>
+      <div class="shot"><img src="images/11-retrace.png" alt="Retrace drafting workflows from your recent sessions" /></div>
+    </div>
   </div>
 </section>
 
@@ -286,7 +302,8 @@
       <div class="card"><div class="ic">⧗</div><h4>Durable waits</h4><p>Waits persist as absolute wake times. A timer slept through fires on the next wake — catch-up, never lost.</p></div>
       <div class="card"><div class="ic">⇄</div><h4>Concurrency-safe</h4><p>A per-run lock and per-step read-modify-write persistence mean pausing or approving never races the executing steps.</p></div>
       <div class="card"><div class="ic">◈</div><h4>Fan-out &amp; join</h4><p>Branch into parallel subagents and AND-join their outputs. Each step is its own fresh context window.</p></div>
-      <div class="card"><div class="ic">✔</div><h4>Tested end to end</h4><p>127 tests green — a scripted fake-claude verifies limit→wait→resume, crash recovery, approvals, and fan-out deterministically.</p></div>
+      <div class="card"><div class="ic">◑</div><h4>Retrace</h4><p>Reads your local session history and drafts workflows from it — compiled and schema-validated before you ever see them.</p></div>
+      <div class="card"><div class="ic">✔</div><h4>Tested end to end</h4><p>147 tests green — a scripted fake-claude verifies limit→wait→resume, crash recovery, approvals, fan-out, and Retrace deterministically.</p></div>
     </div>
   </div>
 </section>

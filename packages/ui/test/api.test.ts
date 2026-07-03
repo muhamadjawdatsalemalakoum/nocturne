@@ -34,4 +34,13 @@ describe("api client", () => {
     await api.newWorkflow("a b&c");
     expect(spy).toHaveBeenCalledWith(expect.stringContaining("name=a%20b%26c"));
   });
+
+  it("posts the retrace request and returns suggestions", async () => {
+    const spy = mockFetchOnce(200, { suggestions: [], sessionsScanned: 0, windowHours: 24, cost: 0 });
+    const res = await api.suggest({ hours: 24, max: 5 });
+    expect(res.windowHours).toBe(24);
+    expect(spy).toHaveBeenCalledWith("/api/suggest", expect.objectContaining({ method: "POST" }));
+    const body = JSON.parse((spy.mock.calls[0][1] as RequestInit).body as string);
+    expect(body).toEqual({ hours: 24, max: 5 });
+  });
 });

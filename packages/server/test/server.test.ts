@@ -71,7 +71,15 @@ async function harness() {
     runner: new CliClaudeRunner(claudePath, { env: { ...process.env, FAKE_CLAUDE_SCENARIO: scenarioPath } }),
     onEvent: (ev) => broadcaster.broadcast(ev),
   });
-  const running: RunningServer = await startServer({ engine, workflowStore, runStore, broadcaster }, 0);
+  const suggester = {
+    suggest: async (req: { hours?: number; max?: number; projectRoot?: string }) => ({
+      suggestions: [{ workflow: newWorkflow("Retraced flow"), rationale: "seen across sessions", sourceSessions: ["s1"] }],
+      sessionsScanned: 3,
+      windowHours: req.hours ?? 24,
+      cost: 0.012,
+    }),
+  };
+  const running: RunningServer = await startServer({ engine, workflowStore, runStore, broadcaster, suggester }, 0);
   const base = `http://127.0.0.1:${running.port}`;
   cleanups.push(async () => {
     await running.close();
@@ -237,5 +245,23 @@ describe("server — runs & websocket", () => {
     const r = await fetch(`${base}/api/does-not-exist`);
     expect(r.status).toBe(404);
     expect((await r.json()).error).toBeTruthy();
+  });
+});
+
+describe("server — retrace", () => {
+  it("suggests workflows from recent sessions", async () => {
+    const { base } = await harness();
+    const r = await fetch(`${base}/api/suggest`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ hours: 12, max: 3 }),
+    });
+    expect(r.status).toBe(200);
+    const body = await r.json();
+    expect(body.windowHours).toBe(12);
+    expect(body.sessionsScanned).toBe(3);
+    expect(body.suggestions).toHaveLength(1);
+    expect(body.suggestions[0].workflow.name).toBe("Retraced flow");
+    expect(body.suggestions[0].rationale).toContain("sessions");
   });
 });

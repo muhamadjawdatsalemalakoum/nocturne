@@ -9,7 +9,7 @@ import {
   normalizeOrThrow,
   type Workflow,
 } from "@nocturne/core";
-import type { Engine, RunEvent } from "@nocturne/engine";
+import type { Engine, RunEvent, Suggester } from "@nocturne/engine";
 import { WorkflowStore } from "./workflowStore.js";
 import type { RunStore } from "@nocturne/engine";
 
@@ -94,6 +94,8 @@ export interface ServerDeps {
   workflowStore: WorkflowStore;
   runStore: RunStore;
   broadcaster: Broadcaster;
+  /** Retrace: drafts workflows from recent Claude Code sessions (optional). */
+  suggester?: Suggester;
   version?: string;
   /** directory of the built UI to serve at / (optional). */
   staticDir?: string;
@@ -243,6 +245,13 @@ export function buildApp(deps: ServerDeps): Express {
   app.post("/api/runs/:id/approve", wrap(async (req, res) => {
     const { nodeId, approved, note } = req.body as { nodeId: string; approved: boolean; note?: string };
     res.json(await deps.engine.approve(req.params.id!, nodeId, approved, note ?? ""));
+  }));
+
+  // ---- Retrace: suggest workflows from recent sessions ----
+  app.post("/api/suggest", wrap(async (req, res) => {
+    if (!deps.suggester) throw new HttpError(501, "Retrace is not available on this daemon");
+    const { hours, max, projectRoot } = (req.body ?? {}) as { hours?: number; max?: number; projectRoot?: string };
+    res.json(await deps.suggester.suggest({ hours, max, projectRoot }));
   }));
 
   // Unknown /api paths must return a JSON 404, never the SPA HTML.

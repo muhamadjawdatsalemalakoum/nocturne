@@ -3,7 +3,7 @@ import { ReactFlow, Controls, useReactFlow, type Edge } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { exportWorkflow, importWorkflow, newWorkflow, type Workflow } from "@nocturne/core";
 import { useStore, undo, redo } from "./store";
-import { api, connectEvents, type ImportSummary } from "./api";
+import { api, connectEvents, type ImportSummary, type SuggestResult, type SuggestionItem } from "./api";
 import { nodeTypes } from "./nodes";
 import { MoonMark, Moon } from "./moon";
 import { Inspector } from "./Inspector";
@@ -12,7 +12,7 @@ import { TEMPLATES, type Template } from "./templates";
 import type { NodeKind } from "./types";
 import {
   IconAgent, IconWait, IconApproval, IconRun, IconExport, IconImport, IconSave, IconUndo, IconRedo, IconEnd,
-  IconMinus, IconPlus, IconWrench, IconSearch, IconShield, IconBeaker,
+  IconMinus, IconPlus, IconWrench, IconSearch, IconShield, IconBeaker, IconRetrace,
 } from "./icons";
 
 const ADD_ITEMS: Array<{ kind: NodeKind; label: string; sub: string; Icon: (p: { className?: string }) => JSX.Element }> = [
@@ -47,6 +47,7 @@ export function App() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [runModal, setRunModal] = useState(false);
   const [review, setReview] = useState<{ summary: ImportSummary; workflow: Workflow } | null>(null);
+  const [retrace, setRetrace] = useState<{ loading: boolean; result?: SuggestResult; error?: string } | null>(null);
   const [projectRoot, setProjectRoot] = useState("");
   const [paramValues, setParamValues] = useState<Record<string, string>>({});
   const [collapse, setCollapse] = useState({ add: false, props: false });
@@ -124,6 +125,38 @@ export function App() {
       setTimeout(() => rf.fitView({ duration: 300, padding: 0.2 }), 60);
     },
     [loadWorkflow, setToast, rf],
+  );
+
+  const openRetrace = useCallback(async () => {
+    setRetrace({ loading: true });
+    try {
+      const result = await api.suggest({ hours: 24, max: 5, projectRoot: projectRoot || undefined });
+      setRetrace({ loading: false, result });
+    } catch (e) {
+      setRetrace({ loading: false, error: (e as Error).message });
+    }
+  }, [projectRoot]);
+
+  const openSuggestion = useCallback(
+    (sug: SuggestionItem) => {
+      loadWorkflow(sug.workflow);
+      setRetrace(null);
+      setToast(`Loaded “${sug.workflow.name}”`);
+      setTimeout(() => rf.fitView({ duration: 300, padding: 0.2 }), 60);
+    },
+    [loadWorkflow, setToast, rf],
+  );
+
+  const saveSuggestion = useCallback(
+    async (sug: SuggestionItem) => {
+      try {
+        await api.saveWorkflow(sug.workflow);
+        setToast("Saved to library");
+      } catch (e) {
+        setToast(`Save failed: ${(e as Error).message}`);
+      }
+    },
+    [setToast],
   );
 
   useEffect(() => {
@@ -226,6 +259,7 @@ export function App() {
         <button className="btn" data-testid="import-btn" onClick={() => fileRef.current?.click()}><IconImport /> Import</button>
         <button className="btn" data-testid="export-btn" onClick={doExport}><IconExport /> Export</button>
         <button className="btn" data-testid="save-btn" onClick={doSave}><IconSave /> Save</button>
+        <button className="btn" data-testid="retrace-btn" title="Draft workflows from your recent Claude Code sessions" onClick={openRetrace}><IconRetrace /> Retrace</button>
         <button className="btn" data-testid="toggle-drawer" onClick={() => setDrawerOpen((o) => !o)}>Runs</button>
         <button className="btn primary" data-testid="run-btn" onClick={() => setRunModal(true)}><IconRun /> Run</button>
         <input ref={fileRef} type="file" accept=".json,.nocturne.json,application/json" style={{ display: "none" }}
@@ -325,6 +359,69 @@ export function App() {
                   setReview(null);
                   setToast("Imported");
                 }}>Import to canvas</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {retrace && (
+        <div className="overlay" onClick={() => setRetrace(null)}>
+          <div className="modal wide" onClick={(e) => e.stopPropagation()} data-testid="retrace-modal">
+            <h2>Retrace your last 24 hours</h2>
+            <div className="sub">
+              Nocturne reads your recent Claude Code sessions <strong>locally</strong> and drafts reusable
+              workflows from what you actually did. Nothing leaves your machine.
+            </div>
+
+            {retrace.loading && (
+              <div className="retrace-state" data-testid="retrace-loading">
+                <Moon phase="waxing" size={16} /> Reading your recent sessions and drafting workflows…
+              </div>
+            )}
+
+            {retrace.error && <div className="retrace-state err">Couldn’t retrace: {retrace.error}</div>}
+
+            {retrace.result && (
+              <>
+                {retrace.result.suggestions.length > 0 ? (
+                  <div className="retrace-meta">
+                    Drafted from {retrace.result.sessionsScanned} session
+                    {retrace.result.sessionsScanned === 1 ? "" : "s"} in the last {retrace.result.windowHours}h
+                    {retrace.result.cost > 0 ? ` · $${retrace.result.cost.toFixed(3)}` : ""}
+                  </div>
+                ) : (
+                  <div className="retrace-state" data-testid="retrace-empty">
+                    {retrace.result.note ?? "No repeatable workflows stood out in these sessions."}
+                  </div>
+                )}
+                <div className="suggestion-list">
+                  {retrace.result.suggestions.map((sug, i) => {
+                    const steps = sug.workflow.nodes.filter((n) => n.type === "agent").length;
+                    return (
+                      <div className="suggestion" data-testid={`suggestion-${i}`} key={sug.workflow.id}>
+                        <div className="sg-top">
+                          <strong>{sug.workflow.name}</strong>
+                          <span className="chip" style={{ marginLeft: "auto" }}>{steps} step{steps === 1 ? "" : "s"}</span>
+                        </div>
+                        {sug.workflow.description && <div className="sg-desc">{sug.workflow.description}</div>}
+                        {sug.rationale && <div className="sg-why">{sug.rationale}</div>}
+                        <div className="sg-actions">
+                          <button className="btn primary" data-testid={`suggestion-open-${i}`} onClick={() => openSuggestion(sug)}>
+                            Open on canvas
+                          </button>
+                          <button className="btn ghost" data-testid={`suggestion-save-${i}`} onClick={() => void saveSuggestion(sug)}>
+                            Save to library
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            <div className="actions">
+              <button className="btn ghost" onClick={() => setRetrace(null)}>Close</button>
             </div>
           </div>
         </div>

@@ -24,6 +24,7 @@ Anthropic split durability and control across two surfaces that don't overlap:
 | Flat-rate subscription economics | capped + metered | ✅ | ✅ |
 | Durable multi-step orchestration with waits + resume | partial | ❌ | ✅ |
 | Visual design surface | ❌ | ❌ | ✅ |
+| Turns your own session history into workflows | ❌ | ❌ | ✅ |
 
 Native Claude Code workflows are autonomous **within a session** but die on exit, can't durably wait,
 and can't pause for input and resume. Nocturne is the durability layer on top: **durable where the
@@ -59,6 +60,33 @@ Other journeys — **human approval gates** ([08](docs/images/08-approval.png)),
 dialog** that shows what a shared workflow can do before it runs
 ([09](docs/images/09-import-review.png)), and the **Figma-style minimizable panels**
 ([10](docs/images/10-minimized.png)) — are on the [website](https://muhamadjawdatsalemalakoum.github.io/nocturne/).
+
+## Retrace — it writes your workflows for you
+
+The hardest part of automation is noticing what's worth automating. **Retrace** does it for
+you: click it and Nocturne reads your **last 24 hours of Claude Code sessions** — locally, from
+`~/.claude/projects` — distills what you actually did, and drafts reusable workflows from the
+patterns it finds. Something good happened with a client? It becomes a workflow you can run,
+tune, and share — so you get it right every time, even on the days you're not focused.
+
+![Retrace drafting workflows from recent sessions](docs/images/11-retrace.png)
+
+Each suggestion arrives as a real, valid pipeline: pick **Open on canvas** to tweak it, or
+**Save to library** to keep it. It's the same subscription-auth CLI the engine uses, so the
+analysis runs on your plan, and **nothing leaves your machine** — the transcripts are read on
+disk, obvious secrets are redacted before anything is sent to the model, and the model only
+ever describes steps (Nocturne compiles the graph and validates every draft against the
+`.nocturne.json` schema, dropping anything malformed).
+
+How it works, end to end:
+
+1. **Scan** — the daemon lists session transcripts touched in the window and skips the rest by
+   modified-time before opening a single file.
+2. **Distill** — each session becomes a compact, redacted digest: your prompts, the tools and
+   files touched, commands run, models used.
+3. **Draft** — a Claude subagent reads the digests and returns workflow *intent* as JSON.
+4. **Compile & validate** — Nocturne turns that intent into positioned, wired, schema-valid
+   graphs and shows you only the ones that pass.
 
 ## Quick start
 
@@ -112,6 +140,10 @@ Key design points:
   show what every agent is doing live, as it happens.
 - **Concurrency-safe.** All state mutations serialize through a per-run lock and persist as per-step
   read-modify-write merges, so pausing/approving/canceling a run never races the executing steps.
+- **Retrace.** The daemon reads local Claude Code transcripts (`~/.claude/projects`), redacts
+  secrets, and asks a subagent to draft workflows from your recent work. The model only emits
+  step *intent*; `packages/core` compiles and validates every draft, so a suggestion is always a
+  runnable, portable `.nocturne.json`.
 
 ## Development
 
@@ -129,7 +161,8 @@ fan-out/join are all verified deterministically without touching a real subscrip
 
 ## Status
 
-v1: canvas, engine, durable limit-aware waits, approvals, import/export, full test suite green.
+v1: canvas, engine, durable limit-aware waits, approvals, import/export, Retrace (workflow
+suggestions from your session history), full test suite green.
 Roadmap: OS-level wake helpers for machine-asleep waits, conditional nodes, a shared workflow gallery.
 
 ## License
