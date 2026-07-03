@@ -2,11 +2,15 @@
 
 **Design multi-agent Claude Code workflows on a canvas. Run them while you sleep — durably, locally, on the subscription you already pay for.**
 
+🌐 **[nocturne website & walkthrough →](https://muhamadjawdatsalemalakoum.github.io/nocturne/)**
+
 Nocturne is a local-first workflow runner for [Claude Code](https://code.claude.com). You lay out a
 multi-step agent pipeline on an infinite canvas — pick the model per step, drop in timed waits and
 approval gates — then hit **Run**. Each step executes as its own Claude Code subagent, in its own
 context, and hands its output to the next. If a run hits your usage limit at 2am, it **checkpoints,
 waits for the window to reset, and resumes exactly where it stopped.**
+
+![A Nocturne run paused on a usage-limit-reset wait, ready to resume](docs/images/07-waiting-reset.png)
 
 ## Why it exists
 
@@ -28,6 +32,33 @@ tokens** — with a canvas that has taste.
 
 The hero feature and the economics are the same feature: unattended subscription execution is only
 possible with an engine that checkpoints, waits out the reset, and resumes. That's the whole point.
+
+## A full run, start to finish
+
+**1. Start from a blank canvas and a library of one-click templates.**
+
+![The empty canvas with the template picker](docs/images/01-canvas.png)
+
+**2. One click builds a whole pipeline — then tune each step with options, not typing.** Model is a
+segmented control; prompts have one-tap starters; tools are preset bundles plus toggle chips;
+permissions are a plain-language dropdown, with the rarely-needed knobs behind *Advanced*.
+
+![The options-first inspector](docs/images/03-inspector.png)
+
+**3. Hit Run (it uses your existing `claude` login) and watch every agent work, live** — files read
+and edited, commands run, cost ticking up, streamed onto the node and into the run panel.
+
+![A live streaming run](docs/images/05-running.png)
+
+**4. If it hits your usage limit, it holds on a limit-reset wait and resumes on its own** — the hero
+feature. Come back to a completed pipeline, every step green with its output and total cost.
+
+![A completed run](docs/images/06-completed.png)
+
+Other journeys — **human approval gates** ([08](docs/images/08-approval.png)), the **import review
+dialog** that shows what a shared workflow can do before it runs
+([09](docs/images/09-import-review.png)), and the **Figma-style minimizable panels**
+([10](docs/images/10-minimized.png)) — are on the [website](https://muhamadjawdatsalemalakoum.github.io/nocturne/).
 
 ## Quick start
 
