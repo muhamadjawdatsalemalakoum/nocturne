@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@nocturne/core": ["packages/core/src/index.ts"],
+      "@nocturne/engine": ["packages/engine/src/index.ts"],
+      "@nocturne/server": ["packages/server/src/index.ts"]
+    },
+    "noEmit": true
+  },
+  "include": [
+    "packages/core/src",
+    "packages/core/test",
+    "packages/engine/src",
+    "packages/engine/test",
+    "packages/server/src",
+    "packages/server/test"
+  ]
+}

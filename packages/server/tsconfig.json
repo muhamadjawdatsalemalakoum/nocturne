@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "paths": {
+      "@nocturne/core": ["../core/src/index.ts"],
+      "@nocturne/engine": ["../engine/src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}

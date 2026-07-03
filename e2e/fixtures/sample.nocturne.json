@@ -1,0 +1,48 @@
+{
+  "nocturne": 1,
+  "id": "e2e-sample",
+  "name": "E2E Sample",
+  "description": "Two-step sample used by the end-to-end suite.",
+  "params": [],
+  "nodes": [
+    { "id": "start", "type": "start", "position": { "x": 0, "y": 100 } },
+    {
+      "id": "a",
+      "type": "agent",
+      "position": { "x": 240, "y": 100 },
+      "data": {
+        "title": "First step",
+        "prompt": "do the first thing",
+        "model": "haiku",
+        "cwd": "",
+        "allowedTools": [],
+        "permissionMode": "dontAsk",
+        "continueFrom": null,
+        "retry": { "max": 1, "backoffSec": 5 },
+        "outputSchema": null
+      }
+    },
+    {
+      "id": "b",
+      "type": "agent",
+      "position": { "x": 480, "y": 100 },
+      "data": {
+        "title": "Second step",
+        "prompt": "continue using {{steps.a.output}}",
+        "model": "sonnet",
+        "cwd": "",
+        "allowedTools": [],
+        "permissionMode": "dontAsk",
+        "continueFrom": null,
+        "retry": { "max": 1, "backoffSec": 5 },
+        "outputSchema": null
+      }
+    },
+    { "id": "end", "type": "end", "position": { "x": 720, "y": 100 } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "start", "target": "a" },
+    { "id": "e2", "source": "a", "target": "b" },
+    { "id": "e3", "source": "b", "target": "end" }
+  ]
+}

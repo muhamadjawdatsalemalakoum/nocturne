@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "nocturne",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["tsx", "scripts/preview.mjs", "serve", "--port", "5151"],
+      "port": 5151
+    }
+  ]
+}
