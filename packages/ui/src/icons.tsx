@@ -130,13 +130,15 @@ export const IconPhone = svg(
 // retrace — looking back over the night's trail: a counter-clockwise dial returning to a node
 export const IconRetrace = svg(
   <>
-    <path d="M5 12 a7 7 0 1 1 2.2 5" />
-    <path d="M5 7.5 V12 H9.5" />
+    <path d="M5 12 a7 7 0 1 1 2.05 4.95" />
+    <path d="M5 8 L5 12 L9 12" />
     <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
   </>,
 );
-// template glyphs
-export const IconWrench = svg(<path d="M15 4 a4 4 0 0 0 -5 5 L4 15 l3 3 l6-6 a4 4 0 0 0 5-5 l-3 3 l-2-2 Z" />);
+// template glyphs — wrench: an open-end spanner on the diagonal, drawn honestly
+export const IconWrench = svg(
+  <path d="M19.5 7.5 a4.5 4.5 0 0 1 -6 4.24 L7 18.24 a2 2 0 0 1 -2.83 -2.83 L10.7 8.9 a4.5 4.5 0 0 1 5.66 -5.66 l-2.62 2.62 2.83 2.83 2.62 -2.62 a4.5 4.5 0 0 1 .31 1.43 Z" />,
+);
 export const IconSearch = svg(
   <>
     <circle cx="11" cy="11" r="6" />
