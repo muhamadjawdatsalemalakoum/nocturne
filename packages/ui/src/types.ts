@@ -1,7 +1,7 @@
 import type { Workflow } from "@nocturne/core";
 
 export type { Workflow };
-export type NodeKind = "start" | "agent" | "wait" | "approval" | "end";
+export type NodeKind = "start" | "agent" | "wait" | "approval" | "condition" | "end";
 
 export type StepStatus = "pending" | "running" | "succeeded" | "failed" | "skipped" | "waiting";
 export type RunStatus =

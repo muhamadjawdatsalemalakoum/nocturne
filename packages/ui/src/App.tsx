@@ -13,13 +13,14 @@ import { TEMPLATES, type Template } from "./templates";
 import type { NodeKind } from "./types";
 import {
   IconAgent, IconWait, IconApproval, IconRun, IconExport, IconImport, IconSave, IconUndo, IconRedo, IconEnd,
-  IconMinus, IconPlus, IconWrench, IconSearch, IconShield, IconBeaker, IconRetrace, IconPhone,
+  IconMinus, IconPlus, IconWrench, IconSearch, IconShield, IconBeaker, IconRetrace, IconPhone, IconBranch,
 } from "./icons";
 
 const ADD_ITEMS: Array<{ kind: NodeKind; label: string; sub: string; Icon: (p: { className?: string }) => JSX.Element }> = [
   { kind: "agent", label: "Agent", sub: "runs a prompt", Icon: IconAgent },
   { kind: "wait", label: "Wait", sub: "timer · reset", Icon: IconWait },
   { kind: "approval", label: "Approval", sub: "pause for you", Icon: IconApproval },
+  { kind: "condition", label: "If / else", sub: "branch the flow", Icon: IconBranch },
   { kind: "end", label: "End", sub: "finish a branch", Icon: IconEnd },
 ];
 

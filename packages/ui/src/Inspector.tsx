@@ -81,6 +81,18 @@ export function Inspector() {
           </div>
 
           <div className="field">
+            <label>Runs</label>
+            <div className="stepper" data-testid="f-repeat">
+              <button aria-label="fewer runs" onClick={() => update(node.id, { repeat: Math.max(1, ((d.repeat as number) ?? 1) - 1) })}>−</button>
+              <span className="mono">{((d.repeat as number) ?? 1)}×</span>
+              <button aria-label="more runs" onClick={() => update(node.id, { repeat: Math.min(20, ((d.repeat as number) ?? 1) + 1) })}>+</button>
+              {((d.repeat as number) ?? 1) > 1 && (
+                <span className="hint" style={{ margin: 0 }}>runs {(d.repeat as number)} times, outputs joined</span>
+              )}
+            </div>
+          </div>
+
+          <div className="field">
             <label>Prompt</label>
             <div className="preset-row" style={{ flexWrap: "wrap" }}>
               {PROMPT_PRESETS.map((p) => (
@@ -197,6 +209,59 @@ export function Inspector() {
           </div>
           <textarea style={{ fontFamily: "var(--font-ui)", fontSize: 12.5, minHeight: 60 }} value={(d.message as string) ?? ""} onChange={(e) => update(node.id, { message: e.target.value })} />
         </div>
+      )}
+
+      {kind === "condition" && (
+        <>
+          <div className="field">
+            <label>Check</label>
+            <div className="select">
+              <select
+                data-testid="cond-left"
+                value={(d.left as string) ?? ""}
+                onChange={(e) => update(node.id, { left: e.target.value })}
+              >
+                <option value="" disabled>what to look at…</option>
+                {upstream.map((u) => (
+                  <option key={u.id} value={`{{steps.${u.id}.output}}`}>
+                    output of “{(u.data as { title?: string }).title || u.id}”
+                  </option>
+                ))}
+                {meta.params.map((p) => (
+                  <option key={p.name} value={`{{params.${p.name}}}`}>param “{p.name}”</option>
+                ))}
+              </select>
+            </div>
+            {upstream.length === 0 && meta.params.length === 0 && (
+              <div className="hint">Connect an agent step into this condition first — then its output appears here.</div>
+            )}
+          </div>
+          <div className="field">
+            <label>Condition</label>
+            <div className="select">
+              <select data-testid="cond-op" value={(d.op as string) ?? "contains"} onChange={(e) => update(node.id, { op: e.target.value })}>
+                <option value="contains">contains</option>
+                <option value="not_contains">does not contain</option>
+                <option value="equals">equals</option>
+                <option value="not_equals">does not equal</option>
+                <option value="matches">matches regex</option>
+                <option value="not_empty">is not empty</option>
+                <option value="gt">is greater than</option>
+                <option value="lt">is less than</option>
+              </select>
+            </div>
+          </div>
+          {d.op !== "not_empty" && (
+            <div className="field">
+              <label>Value</label>
+              <input className="input" data-testid="cond-value" type="text" value={(d.value as string) ?? ""} onChange={(e) => update(node.id, { value: e.target.value })} placeholder={d.op === "matches" ? "a regular expression" : "text to compare against"} />
+            </div>
+          )}
+          <div className="hint">
+            Wire the <strong style={{ color: "var(--done)" }}>✓ true</strong> handle to what happens when this holds, and{" "}
+            <strong style={{ color: "var(--failed)" }}>✕ false</strong> to the other path. The untaken branch is skipped.
+          </div>
+        </>
       )}
 
       {(kind === "start" || kind === "end") && <div className="hint">{kind === "start" ? "Where the run begins." : "Marks a finished branch."}</div>}

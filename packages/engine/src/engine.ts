@@ -1,14 +1,15 @@
 import path from "node:path";
 import { existsSync } from "node:fs";
 import {
-  buildDag,
   renderTemplate,
   TemplateError,
+  type ConditionNodeData,
   type Workflow,
   type TemplateContext,
 } from "@nocturne/core";
 import type {
   ClaudeActivity,
+  ClaudeResult,
   ClaudeRunner,
   EngineConfig,
   RunEvent,
@@ -330,7 +331,6 @@ export class Engine {
     if (!state || isTerminal(state.status) || state.status === "paused" || state.status === "canceled") {
       return { kind: "done" };
     }
-    const { predecessors } = buildDag(state.workflow);
     if (state.status !== "running") await this.setRunStatus(state, "running");
 
     const now = this.clock.now();
@@ -351,26 +351,82 @@ export class Engine {
       }
     }
 
-    // 2) ready = pending nodes whose predecessors all succeeded
-    const ready = Object.values(state.steps).filter(
-      (s) =>
-        s.status === "pending" &&
-        (predecessors.get(s.nodeId) ?? []).every((p) => state.steps[p]?.status === "succeeded" || state.steps[p]?.status === "skipped"),
-    );
+    // 2) edge-aware readiness. An incoming edge is:
+    //    live  — source succeeded and (unbranched, or its branch matches the
+    //            condition's verdict)
+    //    dead  — source skipped, or a condition took the other branch
+    //    open  — source not finished yet
+    // A pending node with ALL edges dead is skipped (cascades). It is ready when
+    // no edge is open and at least one edge is live (join-over-branches = OR).
+    const edgesTo = new Map<string, typeof state.workflow.edges>();
+    for (const e of state.workflow.edges) {
+      const arr = edgesTo.get(e.target) ?? [];
+      arr.push(e);
+      edgesTo.set(e.target, arr);
+    }
+    const edgeState = (e: (typeof state.workflow.edges)[number]): "live" | "dead" | "open" => {
+      const src = state.steps[e.source];
+      if (!src) return "dead";
+      if (src.status === "skipped") return "dead";
+      if (src.status !== "succeeded") return "open";
+      if (!e.branch) return "live";
+      return (src.output === "true" ? "true" : "false") === e.branch ? "live" : "dead";
+    };
+
+    // skip cascade to fixpoint: a branch not taken kills its whole subtree
+    let skippedAny = false;
+    for (;;) {
+      let changed = false;
+      for (const s of Object.values(state.steps)) {
+        if (s.status !== "pending") continue;
+        const inc = edgesTo.get(s.nodeId) ?? [];
+        if (inc.length && inc.every((e) => edgeState(e) === "dead")) {
+          this.setStep(state, s, "skipped", "branch not taken");
+          s.output = "";
+          changed = true;
+          skippedAny = true;
+        }
+      }
+      if (!changed) break;
+    }
+
+    const ready = Object.values(state.steps).filter((s) => {
+      if (s.status !== "pending") return false;
+      const inc = edgesTo.get(s.nodeId) ?? [];
+      if (!inc.length) return true; // the start node
+      const states = inc.map(edgeState);
+      return !states.includes("open") && states.includes("live");
+    });
 
     if (ready.length === 0) {
+      if (skippedAny) {
+        await this.store.save(state);
+        return { kind: "again" };
+      }
       await this.settle(state);
       return { kind: "done" };
     }
 
-    // 3) instantaneous nodes first (start/end/wait/approval)
+    // 3) instantaneous nodes first (start/end/wait/approval/condition)
     const agents: StepRecord[] = [];
-    let progressed = false;
+    let progressed = skippedAny;
     for (const s of ready) {
       const node = nodeOf(state.workflow, s.nodeId)!;
       if (node.type === "start" || node.type === "end") {
         this.setStep(state, s, "succeeded");
         s.output = "";
+        progressed = true;
+      } else if (node.type === "condition") {
+        try {
+          const verdict = evalCondition(node.data, this.buildCtx(state));
+          s.output = verdict ? "true" : "false";
+          s.endedAt = now;
+          this.setStep(state, s, "succeeded", `${node.data.left} ${node.data.op} ${node.data.value} → ${s.output}`);
+        } catch (e) {
+          s.error = e instanceof Error ? e.message : String(e);
+          s.endedAt = now;
+          this.setStep(state, s, "failed", s.error);
+        }
         progressed = true;
       } else if (node.type === "wait") {
         const wakeAt = computeWakeAt(node.data, now, this.clock, this.config.defaultLimitWaitMinutes);
@@ -434,23 +490,27 @@ export class Engine {
     await this.store.save(state);
   }
 
+  /** Template context from the run's params + every succeeded step's output. */
+  private buildCtx(state: RunState): TemplateContext {
+    const stepsCtx: TemplateContext["steps"] = {};
+    for (const s of Object.values(state.steps)) {
+      if (s.status === "succeeded" && typeof s.output === "string") stepsCtx[s.nodeId] = { output: s.output };
+    }
+    return {
+      params: state.params,
+      steps: stepsCtx,
+      workflow: { id: state.workflow.id, name: state.workflow.name, description: state.workflow.description },
+      run: { projectRoot: state.projectRoot },
+    };
+  }
+
   private async runAgent(state: RunState, step: StepRecord, signal?: AbortSignal): Promise<void> {
     const node = nodeOf(state.workflow, step.nodeId)!;
     if (node.type !== "agent") return;
     const d = node.data;
     step.attempts += 1;
     try {
-    // build handoff context from succeeded upstream agent outputs
-    const stepsCtx: TemplateContext["steps"] = {};
-    for (const s of Object.values(state.steps)) {
-      if (s.status === "succeeded" && typeof s.output === "string") stepsCtx[s.nodeId] = { output: s.output };
-    }
-    const ctx: TemplateContext = {
-      params: state.params,
-      steps: stepsCtx,
-      workflow: { id: state.workflow.id, name: state.workflow.name, description: state.workflow.description },
-      run: { projectRoot: state.projectRoot },
-    };
+    const ctx = this.buildCtx(state);
 
     let prompt: string;
     try {
@@ -490,23 +550,33 @@ export class Engine {
       }
     };
 
-    const result = await this.runner.run({
-      prompt,
-      model: d.model,
-      effort: d.effort,
-      cwd,
-      allowedTools: d.allowedTools,
-      permissionMode: d.permissionMode,
-      maxBudgetUsd: d.maxBudgetUsd,
-      resumeSessionId,
-      outputSchema: d.outputSchema ?? undefined,
-      timeoutMs,
-      onActivity,
-      signal,
-    });
-
-    step.costUsd = (step.costUsd ?? 0) + result.costUsd;
-    if (result.sessionId) step.sessionId = result.sessionId;
+    // repeat: run the step N times in sequence; each pass sees the growing tail.
+    const times = Math.max(1, Math.min(20, d.repeat ?? 1));
+    const outputs: string[] = [];
+    let result!: ClaudeResult;
+    for (let pass = 0; pass < times; pass++) {
+      if (times > 1) {
+        this.emitLive({ type: "step.activity", runId: state.runId, nodeId: step.nodeId, kind: "text", text: `— run ${pass + 1} of ${times} —`, at: this.clock.now() });
+      }
+      result = await this.runner.run({
+        prompt,
+        model: d.model,
+        effort: d.effort,
+        cwd,
+        allowedTools: d.allowedTools,
+        permissionMode: d.permissionMode,
+        maxBudgetUsd: d.maxBudgetUsd,
+        resumeSessionId,
+        outputSchema: d.outputSchema ?? undefined,
+        timeoutMs,
+        onActivity,
+        signal,
+      });
+      step.costUsd = (step.costUsd ?? 0) + result.costUsd;
+      if (result.sessionId) step.sessionId = result.sessionId;
+      if (result.aborted || result.isError) break;
+      outputs.push(result.text);
+    }
 
     // user-initiated abort (cancel/pause): not a failure, not an attempt — the
     // step re-arms as pending and re-runs on resume.
@@ -518,7 +588,7 @@ export class Engine {
     }
 
     if (!result.isError) {
-      step.output = result.text;
+      step.output = outputs.length > 1 ? outputs.join("\n\n---\n\n") : result.text;
       step.endedAt = this.clock.now();
       step.limitHits = 0;
       this.setStep(state, step, "succeeded");
@@ -682,4 +752,34 @@ export function computeWakeAt(
 
 function cryptoId(): string {
   return crypto.randomUUID();
+}
+
+/** Deterministic condition evaluation — no LLM in the control plane. */
+export function evalCondition(data: ConditionNodeData, ctx: TemplateContext): boolean {
+  const L = renderTemplate(data.left, ctx);
+  const R = renderTemplate(data.value ?? "", ctx);
+  switch (data.op) {
+    case "contains":
+      return L.toLowerCase().includes(R.toLowerCase());
+    case "not_contains":
+      return !L.toLowerCase().includes(R.toLowerCase());
+    case "equals":
+      return L.trim() === R.trim();
+    case "not_equals":
+      return L.trim() !== R.trim();
+    case "matches":
+      try {
+        return new RegExp(R, "i").test(L);
+      } catch {
+        return false;
+      }
+    case "not_empty":
+      return L.trim().length > 0;
+    case "gt":
+      return parseFloat(L) > parseFloat(R);
+    case "lt":
+      return parseFloat(L) < parseFloat(R);
+    default:
+      return false;
+  }
 }

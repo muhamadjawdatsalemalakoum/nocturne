@@ -577,6 +577,63 @@ button {
   color: var(--failed);
 }
 
+/* condition node: the fork in the night road */
+.node.condition {
+  width: 220px;
+}
+.node.condition .cond-expr {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: -0.01em;
+  color: var(--muted);
+}
+.branch-tags {
+  display: flex;
+  justify-content: flex-end;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  padding: 0 10px 10px;
+}
+.branch-tags .bt {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  padding: 1px 7px;
+  border-radius: var(--r-chip);
+  border: 1px solid var(--rule);
+  background: var(--surface-2);
+}
+.branch-tags .bt.true { color: var(--done); border-color: color-mix(in srgb, var(--done) 35%, var(--rule)); }
+.branch-tags .bt.false { color: var(--failed); border-color: color-mix(in srgb, var(--failed) 30%, var(--rule)); }
+
+/* runs stepper */
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.stepper > button {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-chip);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 15px;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.stepper > button:hover {
+  background: var(--surface-3);
+  border-color: var(--rule-strong);
+}
+.stepper > .mono {
+  min-width: 34px;
+  text-align: center;
+  font-size: 13px;
+}
+
 .node.terminal {
   width: 44px;
   height: 44px;

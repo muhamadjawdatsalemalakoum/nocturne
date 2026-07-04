@@ -111,6 +111,15 @@ export const IconPlus = svg(
     <line x1="5" y1="12" x2="19" y2="12" />
   </>,
 );
+// branch — the path forks at a waypoint: one line in, two ways out
+export const IconBranch = svg(
+  <>
+    <line x1="4" y1="12" x2="10" y2="12" />
+    <path d="M10 12 L16 6 H20" />
+    <path d="M10 12 L16 18 H20" />
+    <circle cx="10" cy="12" r="1.4" fill="currentColor" stroke="none" />
+  </>,
+);
 // pair — a handset on the meridian: companion device on the same night sky
 export const IconPhone = svg(
   <>

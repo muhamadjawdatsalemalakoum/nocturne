@@ -128,8 +128,66 @@ export function validateWorkflow(input: unknown): ValidationResult {
     scanSecret(p.description, `Param "${p.name}" description`);
   }
 
+  // template-reference checking shared by agent prompts and condition operands
+  const checkRefs = (nodeId: string, text: string) => {
+    const anc = ancestors.get(nodeId) ?? new Set<string>();
+    for (const ref of extractRefs(text)) {
+      if (ref.root === "params") {
+        const pname = ref.parts[1];
+        if (!pname || ref.parts.length !== 2 || !paramNames.has(pname)) {
+          errors.push({ code: "bad-ref", message: `Node "${nodeId}" references unknown param {{${ref.raw}}}`, nodeId });
+        }
+      } else if (ref.root === "steps") {
+        const target = ref.parts[1];
+        if (ref.parts[2] !== "output" || ref.parts.length !== 3 || !target) {
+          errors.push({ code: "bad-ref", message: `Node "${nodeId}" has malformed step ref {{${ref.raw}}}`, nodeId });
+        } else if (!ids.has(target)) {
+          errors.push({ code: "bad-ref", message: `Node "${nodeId}" references output of missing node {{${ref.raw}}}`, nodeId });
+        } else if (!cycle.length && !anc.has(target)) {
+          errors.push({ code: "bad-ref", message: `Node "${nodeId}" references {{${ref.raw}}} which is not upstream of it`, nodeId });
+        }
+      } else if (ref.root === "workflow") {
+        if (ref.parts.length !== 2 || !["name", "description", "id"].includes(ref.parts[1] ?? "")) {
+          errors.push({ code: "bad-ref", message: `Node "${nodeId}" references unknown field {{${ref.raw}}}`, nodeId });
+        }
+      } else if (ref.root === "run") {
+        if (ref.parts.length !== 2 || ref.parts[1] !== "projectRoot") {
+          errors.push({ code: "bad-ref", message: `Node "${nodeId}" references unknown field {{${ref.raw}}}`, nodeId });
+        }
+      } else {
+        errors.push({ code: "bad-ref", message: `Node "${nodeId}" references unknown root {{${ref.raw}}}`, nodeId });
+      }
+    }
+  };
+
   for (const n of wf.nodes) {
     if (n.type === "approval") scanSecret((n.data as { message: string }).message, `Approval "${n.id}" message`, n.id);
+
+    if (n.type === "condition") {
+      const outs = wf.edges.filter((e) => e.source === n.id);
+      const t = outs.filter((e) => e.branch === "true").length;
+      const f = outs.filter((e) => e.branch === "false").length;
+      const un = outs.filter((e) => !e.branch).length;
+      if (t !== 1 || f !== 1 || un > 0) {
+        errors.push({
+          code: "bad-branches",
+          message: `Condition "${n.id}" needs exactly one true edge and one false edge (found ${t} true, ${f} false, ${un} unlabeled)`,
+          nodeId: n.id,
+        });
+      }
+      checkRefs(n.id, n.data.left);
+      checkRefs(n.id, n.data.value);
+      if (n.data.op === "matches") {
+        try {
+          new RegExp(n.data.value);
+        } catch {
+          errors.push({ code: "bad-regex", message: `Condition "${n.id}" has an invalid regex: ${n.data.value}`, nodeId: n.id });
+        }
+      }
+      continue;
+    }
+
+    // branch labels are only meaningful on condition outputs
     if (n.type !== "agent") continue;
     const d = n.data;
 
@@ -153,34 +211,14 @@ export function validateWorkflow(input: unknown): ValidationResult {
       }
     }
 
-    const refs = extractRefs(d.prompt);
-    const anc = ancestors.get(n.id) ?? new Set<string>();
-    for (const ref of refs) {
-      if (ref.root === "params") {
-        const pname = ref.parts[1];
-        if (!pname || ref.parts.length !== 2 || !paramNames.has(pname)) {
-          errors.push({ code: "bad-ref", message: `Node "${n.id}" references unknown param {{${ref.raw}}}`, nodeId: n.id });
-        }
-      } else if (ref.root === "steps") {
-        const target = ref.parts[1];
-        if (ref.parts[2] !== "output" || ref.parts.length !== 3 || !target) {
-          errors.push({ code: "bad-ref", message: `Node "${n.id}" has malformed step ref {{${ref.raw}}}`, nodeId: n.id });
-        } else if (!ids.has(target)) {
-          errors.push({ code: "bad-ref", message: `Node "${n.id}" references output of missing node {{${ref.raw}}}`, nodeId: n.id });
-        } else if (!cycle.length && !anc.has(target)) {
-          errors.push({ code: "bad-ref", message: `Node "${n.id}" references {{${ref.raw}}} which is not upstream of it`, nodeId: n.id });
-        }
-      } else if (ref.root === "workflow") {
-        if (ref.parts.length !== 2 || !["name", "description", "id"].includes(ref.parts[1] ?? "")) {
-          errors.push({ code: "bad-ref", message: `Node "${n.id}" references unknown field {{${ref.raw}}}`, nodeId: n.id });
-        }
-      } else if (ref.root === "run") {
-        if (ref.parts.length !== 2 || ref.parts[1] !== "projectRoot") {
-          errors.push({ code: "bad-ref", message: `Node "${n.id}" references unknown field {{${ref.raw}}}`, nodeId: n.id });
-        }
-      } else {
-        errors.push({ code: "bad-ref", message: `Node "${n.id}" references unknown root {{${ref.raw}}}`, nodeId: n.id });
-      }
+    checkRefs(n.id, d.prompt);
+  }
+
+  // a branch label on a non-condition source is a wiring mistake
+  const nodeType = new Map(wf.nodes.map((n) => [n.id, n.type] as const));
+  for (const e of wf.edges) {
+    if (e.branch && nodeType.get(e.source) !== "condition") {
+      errors.push({ code: "bad-branches", message: `Edge "${e.id}" has branch "${e.branch}" but its source is not a condition node` });
     }
   }
 

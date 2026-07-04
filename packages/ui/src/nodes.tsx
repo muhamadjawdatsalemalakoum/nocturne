@@ -1,7 +1,7 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { useStore } from "./store";
 import { Moon, type Phase } from "./moon";
-import { IconApproval, IconStart, IconEnd } from "./icons";
+import { IconApproval, IconBranch, IconStart, IconEnd } from "./icons";
 import type { StepStatus } from "./types";
 
 function useStatus(id: string): StepStatus | undefined {
@@ -114,6 +114,44 @@ export function ApprovalNode({ id, data, selected }: NodeProps) {
   );
 }
 
+const OP_LABEL: Record<string, string> = {
+  contains: "contains",
+  not_contains: "doesn't contain",
+  equals: "=",
+  not_equals: "≠",
+  matches: "matches",
+  not_empty: "is not empty",
+  gt: ">",
+  lt: "<",
+};
+
+export function ConditionNode({ id, data, selected }: NodeProps) {
+  const status = useStatus(id);
+  const d = data as { title?: string; left?: string; op?: string; value?: string };
+  const left = (d.left || "…").replace(/\{\{steps\.([^.}]+)\.output\}\}/, "$1's output").replace(/\{\{params\.([^}]+)\}\}/, "$1");
+  const summary = d.op === "not_empty" ? `${left} ${OP_LABEL[d.op ?? ""] ?? d.op}` : `${left} ${OP_LABEL[d.op ?? ""] ?? d.op} “${d.value ?? ""}”`;
+  const verdict = status === "succeeded" ? (useStore.getState().run?.steps[id]?.output ?? "") : "";
+  return (
+    <div className={`node condition ${selected ? "selected" : ""}`} data-status={status} data-testid={`node-${id}`}>
+      <Handle type="target" position={Position.Left} />
+      <div className="head">
+        <span className="glyph" style={{ color: "var(--accent)" }}>
+          <IconBranch className="" />
+        </span>
+        <span className="title">{d.title || "If"}</span>
+      </div>
+      <div className="prompt-preview cond-expr">{summary}</div>
+      {verdict && <div className={`readout ${verdict === "true" ? "done" : "wait"}`}>took the {verdict === "true" ? "✓ true" : "✕ false"} branch</div>}
+      <div className="branch-tags">
+        <span className="bt true">✓ true</span>
+        <span className="bt false">✕ false</span>
+      </div>
+      <Handle id="true" type="source" position={Position.Right} style={{ top: "38%" }} />
+      <Handle id="false" type="source" position={Position.Right} style={{ top: "72%" }} />
+    </div>
+  );
+}
+
 export function StartNode({ id }: NodeProps) {
   const status = useStatus(id);
   return (
@@ -142,6 +180,7 @@ export const nodeTypes = {
   agent: AgentNode,
   wait: WaitNode,
   approval: ApprovalNode,
+  condition: ConditionNode,
   start: StartNode,
   end: EndNode,
 };

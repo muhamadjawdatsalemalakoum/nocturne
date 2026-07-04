@@ -27,6 +27,8 @@ export function defaultData(kind: NodeKind): Record<string, unknown> {
       return { mode: "limitReset" };
     case "approval":
       return { message: "Approve to continue." };
+    case "condition":
+      return { title: "If", left: "", op: "contains", value: "" };
     default:
       return {};
   }
@@ -39,7 +41,13 @@ export function toRf(wf: Workflow): { nodes: Node[]; edges: Edge[]; meta: Meta }
     position: n.position,
     data: { ...(("data" in n && n.data) || {}) } as Record<string, unknown>,
   }));
-  const edges: Edge[] = wf.edges.map((e) => ({ id: e.id, source: e.source, target: e.target }));
+  // condition branches ride on React Flow's sourceHandle ("true"/"false")
+  const edges: Edge[] = wf.edges.map((e) => ({
+    id: e.id,
+    source: e.source,
+    target: e.target,
+    ...(e.branch ? { sourceHandle: e.branch } : {}),
+  }));
   return {
     nodes,
     edges,
@@ -60,7 +68,12 @@ export function toWorkflow(meta: Meta, nodes: Node[], edges: Edge[]): Workflow {
       if (kind === "start" || kind === "end") return { ...base, type: kind };
       return { ...base, type: kind, data: n.data };
     }) as Workflow["nodes"],
-    edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target })),
+    edges: edges.map((e) => ({
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      ...(e.sourceHandle === "true" || e.sourceHandle === "false" ? { branch: e.sourceHandle } : {}),
+    })),
   };
 }
 

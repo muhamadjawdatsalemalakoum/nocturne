@@ -40,7 +40,7 @@ export const retrySchema = z.object({
 });
 
 /** Node kinds. `start`/`end` are structural; the rest carry behaviour in `data`. */
-export const nodeTypeSchema = z.enum(["start", "agent", "wait", "approval", "end"]);
+export const nodeTypeSchema = z.enum(["start", "agent", "wait", "approval", "condition", "end"]);
 export type NodeType = z.infer<typeof nodeTypeSchema>;
 
 const baseNode = z.object({
@@ -75,6 +75,8 @@ export const agentNodeDataSchema = z.object({
   outputSchema: z.unknown().nullable().default(null),
   /** Per-step timeout override in seconds. */
   timeoutSec: z.number().int().positive().optional(),
+  /** Run this step N times in sequence (outputs joined); absent/1 = normal. */
+  repeat: z.number().int().min(1).max(20).optional(),
 });
 export type AgentNodeData = z.infer<typeof agentNodeDataSchema>;
 
@@ -102,11 +104,42 @@ export const approvalNodeSchema = baseNode.extend({
   }),
 });
 
+/** Operators for condition nodes — deterministic, no LLM in the control plane. */
+export const CONDITION_OPS = [
+  "contains",
+  "not_contains",
+  "equals",
+  "not_equals",
+  "matches",
+  "not_empty",
+  "gt",
+  "lt",
+] as const;
+export const conditionOpSchema = z.enum(CONDITION_OPS);
+export type ConditionOp = z.infer<typeof conditionOpSchema>;
+
+/**
+ * If/else branching: `left` is a template (usually {{steps.x.output}} or
+ * {{params.y}}) compared against `value`. Outgoing edges carry branch:"true"
+ * / branch:"false"; the untaken branch is skipped at run time.
+ */
+export const conditionNodeSchema = baseNode.extend({
+  type: z.literal("condition"),
+  data: z.object({
+    title: z.string().default("If"),
+    left: z.string().min(1),
+    op: conditionOpSchema,
+    value: z.string().default(""),
+  }),
+});
+export type ConditionNodeData = z.infer<typeof conditionNodeSchema>["data"];
+
 export const nodeSchema = z.discriminatedUnion("type", [
   startNodeSchema,
   agentNodeSchema,
   waitNodeSchema,
   approvalNodeSchema,
+  conditionNodeSchema,
   endNodeSchema,
 ]);
 export type WorkflowNode = z.infer<typeof nodeSchema>;
@@ -115,6 +148,8 @@ export const edgeSchema = z.object({
   id: z.string().min(1),
   source: z.string().min(1),
   target: z.string().min(1),
+  /** set on edges leaving a condition node: which branch this edge carries. */
+  branch: z.enum(["true", "false"]).optional(),
 });
 export type WorkflowEdge = z.infer<typeof edgeSchema>;
 
