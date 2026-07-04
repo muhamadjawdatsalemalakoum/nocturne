@@ -52,7 +52,7 @@ Details: [`claude-plugin/README.md`](./claude-plugin/README.md).
   "mcpServers": {
     "nocturne": {
       "command": "node",
-      "args": ["/abs/path/to/nocturne/packages/mcp/bin/nocturne-mcp.mjs"]
+      "args": ["/abs/path/to/nocturne/integrations/claude-plugin/server/index.cjs"]
     }
   }
 }
@@ -71,7 +71,7 @@ Double-click the produced `.mcpb` to install it into Claude Desktop. Details in
 ## Any MCP client
 
 The server speaks standard MCP over **stdio**, so anything that can launch a stdio MCP server works:
-run `node .../packages/mcp/bin/nocturne-mcp.mjs` (or `npx -y @nocturne/mcp`). Set
+run `node .../integrations/claude-plugin/server/index.cjs` (self-contained, no deps). Set
 `NOCTURNE_DAEMON_URL` if the daemon isn't at `http://127.0.0.1:5151`.
 
 ## Auth & privacy

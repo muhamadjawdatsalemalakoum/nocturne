@@ -351,7 +351,7 @@
         <strong>keeps going after the chat ends</strong>.</p>
         <ul>
           <li>12 tools — run, poll, approve, cancel, and Retrace — on your subscription</li>
-          <li>Add it to Claude Code in one line: <code>claude mcp add nocturne -- node …/nocturne-mcp.mjs</code></li>
+          <li>Install in Claude Code (CLI, desktop app, IDE) straight from the repo: <code>/plugin marketplace add …/nocturne</code></li>
           <li>Claude Desktop via a <code>.mcpb</code> extension; a <code>nocturne</code> skill teaches Claude when to use it</li>
         </ul>
         <div class="doors">
@@ -719,18 +719,45 @@
   document.body.appendChild(ring); document.body.appendChild(dot);
   root.classList.add('cursor-on');
 
-  var tx = 0, ty = 0, rx = 0, ry = 0, shown = false, pressed = false;
+  var tx = 0, ty = 0, rx = 0, ry = 0, shown = false, pressed = false, touching = false;
+
+  function setHover(on) {
+    ring.classList.toggle('hover', on);
+    dot.classList.toggle('hover', on);
+  }
+  // recompute hover from what's actually under the pointer — mouseover alone goes
+  // stale when content moves beneath a stationary cursor (scroll, modal close)
+  function refreshHover() {
+    if (!shown) return;
+    var el = document.elementFromPoint(tx, ty);
+    setHover(!!(el && el.closest && el.closest(INTERACTIVE)));
+  }
 
   window.addEventListener('mousemove', function (e) {
+    if (touching) { touching = false; root.classList.add('cursor-on'); } // mouse is back
     tx = e.clientX; ty = e.clientY;
     dot.style.transform = 'translate3d(' + tx + 'px,' + ty + 'px,0)';
-    if (!shown) { shown = true; if (reduce) { rx = tx; ry = ty; } root.classList.add('cursor-active'); }
+    if (!shown) {
+      shown = true;
+      rx = tx; ry = ty; // snap on first show — never fly in from the corner
+      ring.style.transform = 'translate3d(' + rx + 'px,' + ry + 'px,0)';
+      root.classList.add('cursor-active');
+    }
   }, { passive: true });
 
   document.addEventListener('mouseover', function (e) {
-    var on = !!(e.target && e.target.closest && e.target.closest(INTERACTIVE));
-    ring.classList.toggle('hover', on);
-    dot.classList.toggle('hover', on);
+    setHover(!!(e.target && e.target.closest && e.target.closest(INTERACTIVE)));
+  }, { passive: true });
+  window.addEventListener('scroll', refreshHover, { passive: true });
+  document.addEventListener('click', function () { setTimeout(refreshHover, 50); }, { passive: true });
+  document.addEventListener('keyup', function (e) { if (e.key === 'Escape') setTimeout(refreshHover, 50); });
+
+  // hybrid (touch + mouse) devices pass pointer:fine — a tap must not teleport a
+  // ghost moon to the tap point; hand back the native experience until the mouse moves
+  window.addEventListener('touchstart', function () {
+    touching = true; shown = false;
+    root.classList.remove('cursor-active');
+    root.classList.remove('cursor-on');
   }, { passive: true });
 
   window.addEventListener('mousedown', function () { pressed = true; }, { passive: true });

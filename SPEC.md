@@ -370,7 +370,7 @@ a response-size cap guard against a hung or misbehaving daemon.
 subscription (§5); the MCP layer changes nothing about billing.
 
 **Packaging.**
-- **Claude Code:** `claude mcp add nocturne -- node …/nocturne-mcp.mjs`, or the plugin
+- **Claude Code:** the marketplace plugin (`/plugin marketplace add <repo>` — ships a self-contained bundled server), `claude mcp add`, or raw MCP config
   (`.claude-plugin/plugin.json` + `.mcp.json`) which also bundles a `nocturne` skill.
 - **Claude Desktop:** a `claude_desktop_config.json` entry today, or a `.mcpb` Desktop Extension
   (`server.type: "node"`) packed with the official `@anthropic-ai/mcpb` tool.
