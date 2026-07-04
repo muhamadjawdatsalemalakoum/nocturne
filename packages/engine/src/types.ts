@@ -117,6 +117,10 @@ export interface EngineConfig {
   autoResumeOnStart: boolean;
   /** optional long-lived subscription token (claude setup-token) injected into the child env. */
   oauthToken?: string;
+  /** expose the daemon on the LAN (0.0.0.0) for phone/tablet pairing. */
+  lan?: boolean;
+  /** bearer token required from non-localhost clients when lan is on (QR pairing). */
+  pairingToken?: string;
 }
 
 export const DEFAULT_CONFIG: EngineConfig = {

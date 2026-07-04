@@ -8,6 +8,7 @@ import {
   CliClaudeRunner,
   WorkflowSuggester,
   loadConfig,
+  saveConfig,
   nocturneHome,
 } from "@nocturne/engine";
 import { WorkflowStore } from "./workflowStore.js";
@@ -30,6 +31,15 @@ async function main(): Promise<void> {
   const config = await loadConfig(home);
   const portArg = process.argv.indexOf("--port");
   const port = portArg >= 0 ? Number(process.argv[portArg + 1]) : 5151;
+
+  // --lan (or config.lan): expose on the network for phone/tablet pairing.
+  // A pairing token is minted once and persisted; LAN clients must present it.
+  const lan = process.argv.includes("--lan") || config.lan === true;
+  if (lan && !config.pairingToken) {
+    config.pairingToken = crypto.randomUUID().replace(/-/g, "");
+    config.lan = true;
+    await saveConfig(config, home).catch(() => {});
+  }
 
   const runStore = new RunStore(home);
   await runStore.init();
@@ -63,12 +73,17 @@ async function main(): Promise<void> {
   const staticDir = existsSync(path.join(uiDist, "index.html")) ? uiDist : undefined;
 
   const server = await startServer(
-    { engine, workflowStore, runStore, broadcaster, suggester, version: VERSION, staticDir },
+    {
+      engine, workflowStore, runStore, broadcaster, suggester, version: VERSION, staticDir,
+      ...(lan && config.pairingToken ? { pairingToken: config.pairingToken, advertisePort: port } : {}),
+    },
     port,
+    lan ? "0.0.0.0" : "127.0.0.1",
   );
 
   console.log(`\n  Nocturne daemon running`);
   console.log(`  → http://localhost:${server.port}`);
+  if (lan) console.log(`  LAN pairing on — open the canvas and tap "Pair device" for the QR`);
   console.log(`  state: ${home}`);
   if (!staticDir) console.log(`  (UI not built yet — run: npm run build:ui)`);
   console.log("");

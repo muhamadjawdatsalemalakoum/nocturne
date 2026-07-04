@@ -2,6 +2,7 @@ import express, { type Express, type Request, type Response } from "express";
 import { createServer as createHttpServer, type Server } from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
 import { promises as fs } from "node:fs";
+import os from "node:os";
 import {
   exportWorkflow,
   importWorkflow,
@@ -96,9 +97,31 @@ export interface ServerDeps {
   broadcaster: Broadcaster;
   /** Retrace: drafts workflows from recent Claude Code sessions (optional). */
   suggester?: Suggester;
+  /** LAN pairing: when set, non-localhost clients must present this bearer token. */
+  pairingToken?: string;
+  /** the port the daemon listens on (advertised by /api/pair). */
+  advertisePort?: number;
   version?: string;
   /** directory of the built UI to serve at / (optional). */
   staticDir?: string;
+}
+
+/** True when the socket peer is the local machine (IPv4/IPv6 loopback, incl. mapped). */
+export function isLoopback(addr: string | undefined): boolean {
+  if (!addr) return false;
+  const a = addr.replace(/^::ffff:/i, "");
+  return a === "127.0.0.1" || a === "::1" || a.startsWith("127.");
+}
+
+/** Non-internal IPv4 addresses to advertise for phone pairing. */
+export function lanAddresses(): string[] {
+  const out: string[] = [];
+  for (const ifaces of Object.values(os.networkInterfaces())) {
+    for (const i of ifaces ?? []) {
+      if (!i.internal && i.family === "IPv4") out.push(i.address);
+    }
+  }
+  return out;
 }
 
 const wrap =
@@ -136,8 +159,34 @@ export function buildApp(deps: ServerDeps): Express {
   });
   app.options(/.*/, (_req, res) => res.sendStatus(204));
 
+  // LAN pairing guard: localhost is always trusted; anything else must present the
+  // pairing token (Authorization: Bearer …, or ?token= for the first QR-opened load).
+  app.use((req, res, next) => {
+    if (isLoopback(req.socket.remoteAddress)) return next();
+    const token = deps.pairingToken;
+    if (!token) {
+      res.status(403).json({ error: "LAN access is off. Start the daemon with --lan to pair devices." });
+      return;
+    }
+    const auth = req.headers.authorization;
+    const given = auth?.startsWith("Bearer ") ? auth.slice(7) : (typeof req.query["token"] === "string" ? (req.query["token"] as string) : undefined);
+    if (given === token) return next();
+    res.status(401).json({ error: "Pairing token required. Scan the QR from the Nocturne canvas to pair." });
+  });
+
   app.get("/api/health", wrap(async (_req, res) => {
     res.json({ ok: true, version: deps.version ?? "0.1.0" });
+  }));
+
+  // Pairing info (the canvas renders this as a QR). Loopback-only by design —
+  // a phone can't mint its own invitation.
+  app.get("/api/pair", wrap(async (req, res) => {
+    if (!isLoopback(req.socket.remoteAddress)) throw new HttpError(403, "pairing info is localhost-only");
+    if (!deps.pairingToken) {
+      res.json({ lan: false });
+      return;
+    }
+    res.json({ lan: true, token: deps.pairingToken, port: deps.advertisePort ?? 5151, addresses: lanAddresses() });
   }));
 
   // ---- workflow library ----
@@ -276,7 +325,17 @@ export async function startServer(deps: ServerDeps, port = 5151, host = "127.0.0
   const app = buildApp(deps);
   const server = createHttpServer(app);
   const wss = new WebSocketServer({ server, path: "/ws", maxPayload: 1024 * 1024 });
-  wss.on("connection", (ws) => deps.broadcaster.add(ws));
+  wss.on("connection", (ws, req) => {
+    // same trust rule as HTTP: loopback free, LAN requires the pairing token (?token=)
+    if (!isLoopback(req.socket.remoteAddress)) {
+      const url = new URL(req.url ?? "/ws", "http://x");
+      if (!deps.pairingToken || url.searchParams.get("token") !== deps.pairingToken) {
+        ws.close(4001, "pairing token required");
+        return;
+      }
+    }
+    deps.broadcaster.add(ws);
+  });
 
   // prune half-open sockets that never fire 'close' (client crash, sleep, dropped link)
   const heartbeat = setInterval(() => deps.broadcaster.heartbeat(), 30_000);

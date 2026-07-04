@@ -248,6 +248,63 @@ describe("server — runs & websocket", () => {
   });
 });
 
+describe("server — LAN pairing", () => {
+  async function lanHarness() {
+    const h = await harness();
+    return h;
+  }
+
+  it("loopback stays tokenless; /api/pair reports lan:false when pairing is off", async () => {
+    const { base } = await lanHarness();
+    expect((await fetch(`${base}/api/health`)).status).toBe(200);
+    const pair = await (await fetch(`${base}/api/pair`)).json();
+    expect(pair.lan).toBe(false);
+  });
+
+  it("with a pairing token: LAN requests need the token, loopback does not", async () => {
+    const os = await import("node:os");
+    const { isLoopback, lanAddresses } = await import("../src/server.js");
+    // unit-level guard behavior
+    expect(isLoopback("127.0.0.1")).toBe(true);
+    expect(isLoopback("::1")).toBe(true);
+    expect(isLoopback("::ffff:127.0.0.1")).toBe(true);
+    expect(isLoopback("192.168.1.20")).toBe(false);
+    expect(lanAddresses().every((a) => !a.startsWith("127."))).toBe(true);
+
+    // integration: bind 0.0.0.0 with a token and hit it via a real LAN address
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), "nocturne-lan-"));
+    const runStore = new RunStore(home);
+    await runStore.init();
+    const workflowStore = new WorkflowStore(home);
+    await workflowStore.init();
+    const broadcaster = new Broadcaster();
+    const claudePath = await fakeClaudePath();
+    const engine = new Engine({ store: runStore, config: { ...DEFAULT_CONFIG, claudePath }, runner: new CliClaudeRunner(claudePath) });
+    const running = await startServer({ engine, workflowStore, runStore, broadcaster, pairingToken: "tok-123", advertisePort: 0 }, 0, "0.0.0.0");
+    cleanups.push(async () => { await running.close(); await fs.rm(home, { recursive: true, force: true }).catch(() => {}); });
+
+    const lanIp = lanAddresses()[0];
+    // loopback: no token needed, and /api/pair hands out the invitation
+    expect((await fetch(`http://127.0.0.1:${running.port}/api/health`)).status).toBe(200);
+    const pair = await (await fetch(`http://127.0.0.1:${running.port}/api/pair`)).json();
+    expect(pair.token).toBe("tok-123");
+
+    if (lanIp) {
+      const noTok = await fetch(`http://${lanIp}:${running.port}/api/health`).catch(() => null);
+      if (noTok) {
+        expect(noTok.status).toBe(401);
+        const withTok = await fetch(`http://${lanIp}:${running.port}/api/health`, { headers: { authorization: "Bearer tok-123" } });
+        expect(withTok.status).toBe(200);
+        const qsTok = await fetch(`http://${lanIp}:${running.port}/api/health?token=tok-123`);
+        expect(qsTok.status).toBe(200);
+        // pairing info must NOT be mintable from the LAN, even with the token
+        const pairLan = await fetch(`http://${lanIp}:${running.port}/api/pair`, { headers: { authorization: "Bearer tok-123" } });
+        expect(pairLan.status).toBe(403);
+      } // (firewall may block hairpin connects — loopback assertions above still ran)
+    }
+  });
+});
+
 describe("server — retrace", () => {
   it("suggests workflows from recent sessions", async () => {
     const { base } = await harness();

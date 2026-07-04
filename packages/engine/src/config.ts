@@ -19,6 +19,8 @@ export function sanitizeConfig(input: Partial<EngineConfig>): EngineConfig {
     autoResumeOnStart: typeof input.autoResumeOnStart === "boolean" ? input.autoResumeOnStart : DEFAULT_CONFIG.autoResumeOnStart,
     webhookUrl: str(input.webhookUrl),
     oauthToken: str(input.oauthToken),
+    lan: input.lan === true,
+    pairingToken: str(input.pairingToken),
   };
 }
 
