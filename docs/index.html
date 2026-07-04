@@ -181,6 +181,11 @@
   .chatmock .tool .ok { margin-left:auto; color:var(--done); letter-spacing:.02em; }
   .doors { display:flex; flex-wrap:wrap; gap:7px; margin-top:14px; }
   .door { font-family:var(--mono); font-size:11px; color:var(--muted); border:1px solid var(--rule); border-radius:999px; padding:4px 11px; background:var(--surface); }
+  /* mobile feature: desktop pair modal + phone frame side by side */
+  .shots2 { display:grid; grid-template-columns:1.5fr 1fr; gap:14px; align-items:start; }
+  .shots2 img { width:100%; border-radius:12px; border:1px solid var(--rule); box-shadow:var(--shadow); display:block; }
+  .shots2 .phone img { border-radius:22px; box-shadow:var(--shadow-lg); }
+  @media(max-width:820px){ .shots2 { grid-template-columns:1fr 1fr; } }
 </style>
 </head>
 <body>
@@ -195,6 +200,7 @@
     <a class="nl" href="#features">Features</a>
     <a class="nl" href="#retrace">Retrace</a>
     <a class="nl" href="#mcp">From Claude</a>
+    <a class="nl" href="#mobile">Mobile</a>
     <a class="nl" href="#journey">How it works</a>
     <a class="nl" href="#start">Quick start</a>
     <a class="btn sm primary" href="https://github.com/muhamadjawdatsalemalakoum/nocturne">GitHub ★</a>
@@ -233,6 +239,7 @@
           <tr><td>Durable multi-step orchestration with waits + resume</td><td class="n">partial</td><td class="n">no</td><td class="noc y">yes</td></tr>
           <tr><td>Visual design surface</td><td class="n">no</td><td class="n">no</td><td class="noc y">yes</td></tr>
           <tr><td>Turns your own session history into workflows</td><td class="n">no</td><td class="n">no</td><td class="noc y">yes</td></tr>
+          <tr><td>Peer-to-peer mobile companion (pair by QR, LAN-only)</td><td class="n">no</td><td class="n">no</td><td class="noc y">yes</td></tr>
         </tbody>
       </table>
     </div>
@@ -371,6 +378,26 @@
           <div class="msg"><span class="who a">◐</span><div class="bubble"><span class="tool"><b>nocturne · get_run</b><span class="ok">done</span></span>
             3 of 4 steps green — it's holding at the approval gate. Approve it?</div></div>
         </div>
+      </div>
+    </div>
+
+    <div class="feature" id="mobile">
+      <div class="copy">
+        <div class="eyebrow">Mobile · peer-to-peer</div>
+        <h3>Take the night shift to bed</h3>
+        <p>The first Claude Code plugin with a <strong>peer-to-peer mobile companion</strong>. Start the
+        daemon with <code>--lan</code>, tap <strong>Pair device</strong>, and scan the QR — your phone or
+        tablet connects <strong>straight to your machine over your own Wi-Fi</strong>. No account, no
+        cloud, nothing leaves your network.</p>
+        <ul>
+          <li>Full parity: watch live agent activity, approve gates, pause/resume/cancel, launch runs</li>
+          <li>Phone-first sheets and big touch targets; add to home screen for the full app feel (PWA)</li>
+          <li>One-time pairing token; localhost stays open exactly as before — native Android app in the works</li>
+        </ul>
+      </div>
+      <div class="shots2">
+        <div><img src="images/12-pair.png" alt="The Pair device modal showing the QR invitation" /></div>
+        <div class="phone"><img src="images/13-mobile-run.png" alt="A live run monitored on a phone — streaming activity, approve and pause controls" /></div>
       </div>
     </div>
   </div>

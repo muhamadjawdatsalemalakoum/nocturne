@@ -308,6 +308,15 @@ POST   /api/suggest                       → {hours?, max?, projectRoot?} → R
 WebSocket `/ws`: server pushes `{type: run.updated|step.updated|run.log, …}` —
 drives live canvas run-mode. No client→server commands over WS (REST only).
 
+**LAN pairing (mobile companion).** Off by default (loopback bind). `nocturne serve --lan`
+binds 0.0.0.0 and mints a persistent pairing token. Trust model: loopback requests stay
+tokenless; every non-loopback HTTP request and WS upgrade must present the token
+(`Authorization: Bearer`, or `?token=` on the first QR-opened load — the UI stashes it and
+strips the URL). `GET /api/pair` (loopback-only, so a phone can never mint its own invitation)
+returns `{token, port, addresses}`; the canvas renders it as a QR. The web UI ships as a PWA
+(manifest + maskable icons) with a phone-first responsive layout. Clean-room design inspired by
+PairDrop's pairing UX; no code reuse.
+
 ## 8. Retrace — drafting workflows from your history
 
 **Goal.** Lower the blank-canvas barrier: instead of designing a workflow from scratch, let

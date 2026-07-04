@@ -122,6 +122,23 @@ chat ends. Install it in Claude Code (CLI, desktop app, or IDE extension) straig
 Full setup — Claude Code plugin + skill, Claude Desktop (`.mcpb` one-click extension or config),
 and any MCP client — is in [integrations/README.md](integrations/README.md).
 
+## Take it to bed — the peer-to-peer mobile companion
+
+The first Claude Code plugin with a **peer-to-peer mobile companion**. Start the daemon with
+`nocturne serve --lan`, tap **Pair device** in the canvas, and scan the QR with your phone or
+tablet — it connects **straight to your machine over your own Wi-Fi**. No account, no cloud,
+nothing leaves your network.
+
+| Pair by QR | Monitor from your phone |
+|---|---|
+| ![The Pair device modal with the QR invitation](docs/images/12-pair.png) | ![A live run on a phone](docs/images/13-mobile-run.png) |
+
+Full parity on the go: watch live agent activity stream in, approve gates from bed, pause /
+resume / cancel, and launch workflows — with phone-first sheets and big touch targets. Add it to
+your home screen (it's a PWA) for the full app feel. Security model: a one-time pairing token
+gates every LAN request and the WebSocket; localhost stays open exactly as before. A native
+Android app (CI-built APK) is in the works; iOS coming soon.
+
 ## The workflow format (`*.nocturne.json`)
 
 The exported file **is** the canvas document **is** the library entry — one portable format everywhere.
