@@ -35,14 +35,47 @@ export function Inspector() {
           <textarea style={{ minHeight: 56, fontFamily: "var(--font-ui)", fontSize: 12.5 }} value={meta.description} onChange={(e) => setMeta({ description: e.target.value })} placeholder="What does this workflow do?" />
         </div>
         <div className="field">
-          <label>Parameters</label>
-          <textarea style={{ minHeight: 52 }} value={meta.params.map((p) => p.name).join("\n")} placeholder="one identifier per line"
-            onChange={(e) => {
-              const existing = new Map(meta.params.map((p) => [p.name, p]));
-              const params = e.target.value.split("\n").map((s) => s.trim()).filter(Boolean).map((name) => existing.get(name) ?? { name, description: "", default: "" });
-              setMeta({ params });
-            }} />
-          <div className="hint">Fill these in at run time. Use <code>{"{{params.name}}"}</code> in a prompt.</div>
+          <label>Run inputs</label>
+          <div className="hint" style={{ marginTop: 0, marginBottom: 8 }}>
+            Things you fill in when you press Run — use <code>{"{{params.name}}"}</code> in any prompt.
+          </div>
+          {meta.params.length === 0 && (
+            <div className="params-empty">No inputs yet — add one if a prompt should ask for something at run time (a ticket id, a topic, a branch…).</div>
+          )}
+          {meta.params.map((p, i) => (
+            <div className="param-row" key={i} data-testid={`param-row-${i}`}>
+              <div className="pr-head">
+                <input
+                  className="input pr-name" type="text" value={p.name} placeholder="name"
+                  spellCheck={false}
+                  onChange={(e) => {
+                    const name = e.target.value.replace(/[^a-zA-Z0-9_]/g, "_").replace(/^(\d)/, "_$1");
+                    setMeta({ params: meta.params.map((q, j) => (j === i ? { ...q, name } : q)) });
+                  }}
+                />
+                <button className="panel-toggle" title="Remove input" onClick={() => setMeta({ params: meta.params.filter((_, j) => j !== i) })}>
+                  <IconTrash />
+                </button>
+              </div>
+              <input
+                className="input pr-sub" type="text" value={p.description} placeholder="what is this? (shown at run time)"
+                onChange={(e) => setMeta({ params: meta.params.map((q, j) => (j === i ? { ...q, description: e.target.value } : q)) })}
+              />
+              <input
+                className="input pr-sub" type="text" value={p.default} placeholder="default value (optional)"
+                onChange={(e) => setMeta({ params: meta.params.map((q, j) => (j === i ? { ...q, default: e.target.value } : q)) })}
+              />
+              {meta.params.some((q, j) => j !== i && q.name === p.name && p.name) && (
+                <div className="danger-note">Duplicate name — the later one wins. Rename it.</div>
+              )}
+            </div>
+          ))}
+          <button
+            className="btn" data-testid="add-param" style={{ marginTop: 6 }}
+            onClick={() => setMeta({ params: [...meta.params, { name: `input_${meta.params.length + 1}`, description: "", default: "" }] })}
+          >
+            + Add input
+          </button>
         </div>
         <div className="hint" style={{ marginTop: 12 }}>Select a step to edit it, or start from a template.</div>
       </div>

@@ -13,7 +13,7 @@ import { TEMPLATES, type Template } from "./templates";
 import type { NodeKind } from "./types";
 import {
   IconAgent, IconWait, IconApproval, IconRun, IconExport, IconImport, IconSave, IconUndo, IconRedo, IconEnd,
-  IconMinus, IconPlus, IconWrench, IconSearch, IconShield, IconBeaker, IconRetrace, IconPhone, IconBranch,
+  IconMinus, IconPlus, IconWrench, IconSearch, IconShield, IconBeaker, IconRetrace, IconPhone, IconBranch, IconTrash,
 } from "./icons";
 
 const ADD_ITEMS: Array<{ kind: NodeKind; label: string; sub: string; Icon: (p: { className?: string }) => JSX.Element }> = [
@@ -59,6 +59,17 @@ export function App() {
   }, []);
   const [paramValues, setParamValues] = useState<Record<string, string>>({});
   // phones/tablets start canvas-first: both sheets collapsed (they'd overlap open)
+  const [lib, setLib] = useState<{ q: string; items: import("./types").WorkflowSummary[]; loaded: boolean }>({ q: "", items: [], loaded: false });
+  const refreshLib = useCallback(async () => {
+    try {
+      const items = await api.listWorkflows();
+      setLib((l) => ({ ...l, items, loaded: true }));
+    } catch {
+      setLib((l) => ({ ...l, loaded: true }));
+    }
+  }, []);
+  useEffect(() => { void refreshLib(); }, [refreshLib]);
+
   const [collapse, setCollapse] = useState(() => {
     const small = typeof matchMedia !== "undefined" && matchMedia("(max-width: 900px)").matches;
     return { add: small, props: small };
@@ -121,10 +132,11 @@ export function App() {
     try {
       await api.saveWorkflow(currentWorkflow());
       setToast("Saved to library");
+      void refreshLib();
     } catch (e) {
       setToast(`Save failed: ${(e as Error).message}`);
     }
-  }, [currentWorkflow, setToast]);
+  }, [currentWorkflow, setToast, refreshLib]);
 
   const onImportFile = useCallback(
     async (file: File) => {
@@ -337,6 +349,57 @@ export function App() {
               <div><div className="tname">{t.name}</div><div className="tdesc">{t.description}</div></div>
             </button>
           ))}
+
+          <div className="section-label">Your workflows</div>
+          {lib.items.length > 3 && (
+            <input
+              className="input lib-search" data-testid="lib-search" type="text" placeholder="Search saved workflows…"
+              value={lib.q} onChange={(e) => setLib((l) => ({ ...l, q: e.target.value }))}
+            />
+          )}
+          {lib.loaded && lib.items.length === 0 && (
+            <div className="params-empty" style={{ marginTop: 4 }}>Nothing saved yet — press Save (⌘S) and your workflows live here.</div>
+          )}
+          {lib.items
+            .filter((w) => {
+              const q = lib.q.trim().toLowerCase();
+              return !q || `${w.name} ${w.description}`.toLowerCase().includes(q);
+            })
+            .map((w) => (
+              <div key={w.id} className="tpl saved" data-testid={`saved-${w.id}`}>
+                <button
+                  className="saved-open"
+                  title={w.description || w.name}
+                  onClick={async () => {
+                    try {
+                      loadWorkflow(await api.getWorkflow(w.id));
+                      setToast(`Opened “${w.name}”`);
+                      setTimeout(() => rf.fitView({ duration: 300, padding: 0.2 }), 60);
+                    } catch (e) {
+                      setToast(`Couldn't open: ${(e as Error).message}`);
+                    }
+                  }}
+                >
+                  <div className="tname">{w.name}</div>
+                  <div className="tdesc">{w.nodeCount} nodes{w.description ? ` · ${w.description}` : ""}</div>
+                </button>
+                <button
+                  className="panel-toggle" title="Delete from library"
+                  onClick={async () => {
+                    if (!confirm(`Delete “${w.name}” from your library?`)) return;
+                    try {
+                      await api.deleteWorkflow(w.id);
+                      setToast("Deleted");
+                      void refreshLib();
+                    } catch (e) {
+                      setToast((e as Error).message);
+                    }
+                  }}
+                >
+                  <IconTrash />
+                </button>
+              </div>
+            ))}
         </div>
       </aside>
 
@@ -369,7 +432,12 @@ export function App() {
             {meta.params.map((p) => (
               <div className="field" key={p.name}>
                 <label>{p.name}</label>
-                <input className="input" type="text" value={paramValues[p.name] ?? ""} onChange={(e) => setParamValues((v) => ({ ...v, [p.name]: e.target.value }))} />
+                <input
+                  className="input" type="text" value={paramValues[p.name] ?? ""}
+                  placeholder={p.default ? `default: ${p.default}` : ""}
+                  onChange={(e) => setParamValues((v) => ({ ...v, [p.name]: e.target.value }))}
+                />
+                {p.description && <div className="hint">{p.description}</div>}
               </div>
             ))}
             <div className="actions">

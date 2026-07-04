@@ -607,6 +607,64 @@ button {
 .branch-tags .bt.true { color: var(--done); border-color: color-mix(in srgb, var(--done) 35%, var(--rule)); }
 .branch-tags .bt.false { color: var(--failed); border-color: color-mix(in srgb, var(--failed) 30%, var(--rule)); }
 
+/* saved-workflow library rows */
+.lib-search {
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+.tpl.saved {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 6px;
+}
+.tpl.saved .saved-open {
+  flex: 1;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  min-width: 0;
+}
+.tpl.saved .saved-open .tname,
+.tpl.saved .saved-open .tdesc {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* run-input (param) editor rows */
+.params-empty {
+  font-size: 11.5px;
+  color: var(--faint);
+  border: 1px dashed var(--rule-strong);
+  border-radius: var(--r-card);
+  padding: 10px 12px;
+  line-height: 1.5;
+}
+.param-row {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-card);
+  background: var(--surface-2);
+  padding: 9px;
+  margin-bottom: 8px;
+}
+.param-row .pr-head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.param-row .pr-name {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.param-row .pr-sub {
+  margin-top: 6px;
+  font-size: 11.5px;
+  background: var(--surface);
+}
+
 /* runs stepper */
 .stepper {
   display: flex;
