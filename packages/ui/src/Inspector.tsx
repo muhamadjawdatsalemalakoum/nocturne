@@ -107,7 +107,7 @@ export function Inspector() {
                 {PERMISSION_MODES.map((m) => <option key={m} value={m}>{permissionLabel(m)}</option>)}
               </select>
             </div>
-            {d.permissionMode === "bypassPermissions" && <div className="danger-note">⚠ bypasses all permission checks for this step</div>}
+            {d.permissionMode === "bypassPermissions" && <div className="danger-note">Bypasses all permission checks for this step.</div>}
           </div>
 
           <details className="disclosure">

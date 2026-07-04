@@ -2,12 +2,21 @@ import { useState } from "react";
 import { useStore } from "./store";
 import { api } from "./api";
 import { IconClose, IconMinus, IconPlus } from "./icons";
-import type { RunState } from "./types";
+import { Moon, type Phase } from "./moon";
+import type { RunState, StepStatus } from "./types";
 
 const STATUS_LABEL: Record<string, string> = {
   waiting_timer: "waiting · timer",
   waiting_approval: "waiting · approval",
 };
+
+const STEP_PHASE: Record<string, Phase> = {
+  running: "waxing",
+  waiting: "wait",
+  succeeded: "full",
+  failed: "fail",
+};
+const stepPhase = (s: StepStatus): Phase => STEP_PHASE[s] ?? "new";
 
 export function RunDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const run = useStore((s) => s.run);
@@ -73,6 +82,7 @@ export function RunDrawer({ open, onClose }: { open: boolean; onClose: () => voi
             return (
               <div className="step-row" data-st={step.status} key={id} data-testid={`step-${id}`}>
                 <div className="sr-head">
+                  <span className="sr-glyph"><Moon phase={stepPhase(step.status)} size={13} /></span>
                   <span className="st-name">{title}</span>
                   <span className={`st-badge ${step.status}`} data-testid={`step-status-${id}`}>{step.status}</span>
                 </div>

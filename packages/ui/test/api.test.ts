@@ -40,7 +40,7 @@ describe("api client", () => {
     const res = await api.suggest({ hours: 24, max: 5 });
     expect(res.windowHours).toBe(24);
     expect(spy).toHaveBeenCalledWith("/api/suggest", expect.objectContaining({ method: "POST" }));
-    const body = JSON.parse((spy.mock.calls[0][1] as RequestInit).body as string);
+    const body = JSON.parse((spy.mock.calls[0]![1] as RequestInit).body as string);
     expect(body).toEqual({ hours: 24, max: 5 });
   });
 });

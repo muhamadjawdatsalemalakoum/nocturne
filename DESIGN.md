@@ -68,14 +68,32 @@ Fix failing tests, Research & summarize, Rate-limit-safe pipeline, Implement · 
 ## 5. Nodes, edges & the moon
 
 - **Nodes** are clean white cards: a moon status glyph, title, a mono `model · subagent` line,
-  and a prompt/status readout. The left border is a status rule; the running node streams a live
-  activity line. Handles are invisible (no dot chrome).
+  and a prompt/status readout. Status reads from the moon (phase + colour) and a whisper-subtle,
+  *symmetric* border tint — never a colored left rule. The running node streams a live activity
+  line. Handles are invisible (no dot chrome).
 - **Edges** are orthogonal (`smoothstep`) hairlines; completed edges go sage, the one active edge
   flows clay in the direction of dataflow.
 - The **moon-phase primitive** is the logo, favicon, and every node's status glyph — new = queued,
   waxing = running, full = done — recolored to clay/slate.
 
-## 6. Motion — restrained, Apple easing
+## 6. Restraint — earned, not decorative
+
+Ornament has to encode something true, or it reads as generated. A few lines held against the
+"AI slop" defaults (researched, not guessed):
+
+- **No colored left-border rails.** The 3px status/accent stripe welded to a card is the single
+  most reliable tell of generated UI. Status lives in the moon glyph + a symmetric border tint;
+  emphasis lives in type, spacing, and colour — never a bolted-on bar.
+- **Solid surfaces, not glass.** Panels and the toolbar are ivory with a hairline and a soft
+  shadow. `backdrop-blur` is reserved for a surface that genuinely floats over content (the image
+  lightbox), not sprayed on for a "modern" look.
+- **Shape is a hierarchy axis.** Pills only for the primary floating toolbar; fine controls
+  (tool chips, presets) take the tight `--r-chip` radius. Never one radius on everything.
+- **No emoji as chrome.** Danger is said in language and colour (brick text), not a ⚠.
+- **Elevation is information.** Three shadow tokens map to real depth; flat things separate with a
+  hairline or a tint step, not a reflexive drop shadow on every card.
+
+## 7. Motion — restrained, Apple easing
 
 `cubic-bezier(0.32, 0.72, 0, 1)`, ~180ms. Buttons settle on press; panels and chips transition
 color, not scale. A slow breath marks waiting; a slow clay flow marks the active edge. Everything
