@@ -1,5 +1,38 @@
 import type { Workflow, RunState, WorkflowSummary, RunEvent } from "./types";
 
+/**
+ * LAN pairing token. A phone opens the QR URL (…/?token=xyz) once; we stash the
+ * token, strip it from the address bar, and attach it to every request + the WS.
+ * On localhost the daemon ignores it entirely.
+ */
+const TOKEN_KEY = "nocturne.pairToken";
+export function pairToken(): string | null {
+  try {
+    return typeof localStorage === "undefined" ? null : localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null; // storage blocked (private mode) — localhost works tokenless anyway
+  }
+}
+(() => {
+  try {
+    const url = new URL(location.href);
+    const t = url.searchParams.get("token");
+    if (t) {
+      localStorage.setItem(TOKEN_KEY, t);
+      url.searchParams.delete("token");
+      history.replaceState(null, "", url.toString());
+    }
+  } catch { /* non-browser context */ }
+})();
+
+const _fetch: typeof fetch = (input, init = {}) => {
+  const t = pairToken();
+  if (!t) return fetch(input, init);
+  const headers = new Headers(init.headers);
+  if (!headers.has("authorization")) headers.set("authorization", `Bearer ${t}`);
+  return fetch(input, { ...init, headers });
+};
+
 async function j<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let msg = res.statusText;
@@ -14,50 +47,59 @@ async function j<T>(res: Response): Promise<T> {
 }
 
 export const api = {
-  health: () => fetch("/api/health").then((r) => j<{ ok: boolean; version: string }>(r)),
+  health: () => _fetch("/api/health").then((r) => j<{ ok: boolean; version: string }>(r)),
 
   newWorkflow: (name?: string) =>
-    fetch(`/api/workflows/new${name ? `?name=${encodeURIComponent(name)}` : ""}`).then((r) => j<Workflow>(r)),
+    _fetch(`/api/workflows/new${name ? `?name=${encodeURIComponent(name)}` : ""}`).then((r) => j<Workflow>(r)),
 
-  listWorkflows: () => fetch("/api/workflows").then((r) => j<WorkflowSummary[]>(r)),
-  getWorkflow: (id: string) => fetch(`/api/workflows/${id}`).then((r) => j<Workflow>(r)),
+  listWorkflows: () => _fetch("/api/workflows").then((r) => j<WorkflowSummary[]>(r)),
+  getWorkflow: (id: string) => _fetch(`/api/workflows/${id}`).then((r) => j<Workflow>(r)),
   saveWorkflow: (wf: Workflow) =>
-    fetch("/api/workflows", {
+    _fetch("/api/workflows", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(wf),
     }).then((r) => j<Workflow>(r)),
   deleteWorkflow: (id: string) =>
-    fetch(`/api/workflows/${id}`, { method: "DELETE" }).then((r) => j<{ deleted: boolean }>(r)),
+    _fetch(`/api/workflows/${id}`, { method: "DELETE" }).then((r) => j<{ deleted: boolean }>(r)),
 
   importWorkflow: (text: string) =>
-    fetch("/api/workflows/import", { method: "POST", headers: { "content-type": "application/json" }, body: text }).then(
+    _fetch("/api/workflows/import", { method: "POST", headers: { "content-type": "application/json" }, body: text }).then(
       (r) => j<{ workflow: Workflow; summary: ImportSummary; validation: ValidationResult }>(r),
     ),
 
   startRun: (body: { workflow?: Workflow; workflowId?: string; projectRoot: string; params?: Record<string, string> }) =>
-    fetch("/api/runs", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then(
+    _fetch("/api/runs", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then(
       (r) => j<RunState>(r),
     ),
-  getRun: (id: string) => fetch(`/api/runs/${id}`).then((r) => j<RunState>(r)),
-  listRuns: () => fetch("/api/runs").then((r) => j<RunState[]>(r)),
-  pauseRun: (id: string) => fetch(`/api/runs/${id}/pause`, { method: "POST" }).then((r) => j<RunState>(r)),
-  resumeRun: (id: string) => fetch(`/api/runs/${id}/resume`, { method: "POST" }).then((r) => j<RunState>(r)),
-  cancelRun: (id: string) => fetch(`/api/runs/${id}/cancel`, { method: "POST" }).then((r) => j<RunState>(r)),
+  getRun: (id: string) => _fetch(`/api/runs/${id}`).then((r) => j<RunState>(r)),
+  listRuns: () => _fetch("/api/runs").then((r) => j<RunState[]>(r)),
+  pauseRun: (id: string) => _fetch(`/api/runs/${id}/pause`, { method: "POST" }).then((r) => j<RunState>(r)),
+  resumeRun: (id: string) => _fetch(`/api/runs/${id}/resume`, { method: "POST" }).then((r) => j<RunState>(r)),
+  cancelRun: (id: string) => _fetch(`/api/runs/${id}/cancel`, { method: "POST" }).then((r) => j<RunState>(r)),
   approve: (id: string, nodeId: string, approved: boolean, note = "") =>
-    fetch(`/api/runs/${id}/approve`, {
+    _fetch(`/api/runs/${id}/approve`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ nodeId, approved, note }),
     }).then((r) => j<RunState>(r)),
 
   suggest: (body: { hours?: number; max?: number; projectRoot?: string } = {}) =>
-    fetch("/api/suggest", {
+    _fetch("/api/suggest", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
     }).then((r) => j<SuggestResult>(r)),
+
+  pair: () => _fetch("/api/pair").then((r) => j<PairInfo>(r)),
 };
+
+export interface PairInfo {
+  lan: boolean;
+  token?: string;
+  port?: number;
+  addresses?: string[];
+}
 
 export interface SuggestionItem {
   workflow: Workflow;
@@ -96,7 +138,8 @@ export function connectEvents(onEvent: (ev: RunEvent) => void): () => void {
   const open = () => {
     if (closed) return;
     const proto = location.protocol === "https:" ? "wss" : "ws";
-    ws = new WebSocket(`${proto}://${location.host}/ws`);
+    const t = pairToken();
+    ws = new WebSocket(`${proto}://${location.host}/ws${t ? `?token=${encodeURIComponent(t)}` : ""}`);
     ws.onmessage = (e) => {
       try {
         onEvent(JSON.parse(e.data) as RunEvent);

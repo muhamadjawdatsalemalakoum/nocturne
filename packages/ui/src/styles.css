@@ -1129,6 +1129,32 @@ button {
   color: var(--waiting);
 }
 
+/* ---------- pairing (QR) ---------- */
+.qr-wrap {
+  display: grid;
+  place-items: center;
+  padding: 14px 0 10px;
+}
+.qr {
+  width: 232px;
+  height: 232px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-card);
+  background: #fff;
+  padding: 10px;
+}
+.pair-url {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--muted);
+  text-align: center;
+  word-break: break-all;
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-chip);
+  padding: 6px 9px;
+}
+
 /* ---------- retrace (suggested workflows) ---------- */
 .modal.wide {
   width: 560px;
@@ -1223,6 +1249,61 @@ button {
   z-index: 80;
   font-size: 12.5px;
   font-weight: 500;
+}
+
+/* ---------- mobile & tablet (paired devices): monitoring-first, full parity ---------- */
+@media (max-width: 900px) {
+  /* toolbar: one scrollable strip, comfortable tap targets */
+  .toolbar {
+    left: 10px;
+    right: 10px;
+    transform: none;
+    max-width: none;
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: 6px;
+    padding: 0 8px 0 12px;
+  }
+  .toolbar::-webkit-scrollbar { display: none; }
+  .toolbar .btn { flex: none; height: 44px; }
+  .wf-name { min-width: 120px; }
+
+  /* floating side panels become bottom sheets */
+  .panel.left,
+  .panel.right {
+    left: 10px;
+    right: 10px;
+    width: auto;
+    top: auto;
+    bottom: 10px;
+    max-height: 52vh;
+    max-height: 52dvh;
+  }
+  .panel.left { z-index: 31; }
+  .panel.right { z-index: 32; }
+  .panel.left.collapsed,
+  .panel.right.collapsed { max-height: none; }
+
+  /* the run panel is the hero on a phone: full-width sheet, roomy feed */
+  .panel.run {
+    left: 10px;
+    right: 10px;
+    width: auto;
+    top: auto;
+    bottom: 10px;
+    max-height: 78vh;
+    max-height: 78dvh;
+    z-index: 40;
+  }
+
+  /* modals go near-full-bleed with big touch targets */
+  .modal { width: calc(100vw - 28px); padding: 18px; }
+  .modal .actions .btn,
+  .suggestion .sg-actions .btn { min-height: 44px; }
+  .approve-bar .btn { min-height: 46px; flex: 1; }
+
+  /* nodes stay readable when pinch-zoomed out */
+  .empty .card .big { font-size: 17px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

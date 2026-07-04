@@ -32,7 +32,7 @@ describe("api client", () => {
   it("encodes the workflow name in newWorkflow", async () => {
     const spy = mockFetchOnce(200, { nocturne: 1 });
     await api.newWorkflow("a b&c");
-    expect(spy).toHaveBeenCalledWith(expect.stringContaining("name=a%20b%26c"));
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining("name=a%20b%26c"), expect.anything());
   });
 
   it("posts the retrace request and returns suggestions", async () => {

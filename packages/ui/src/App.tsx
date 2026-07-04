@@ -3,7 +3,8 @@ import { ReactFlow, Controls, useReactFlow, type Edge } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { exportWorkflow, importWorkflow, newWorkflow, type Workflow } from "@nocturne/core";
 import { useStore, undo, redo } from "./store";
-import { api, connectEvents, type ImportSummary, type SuggestResult, type SuggestionItem } from "./api";
+import QRCode from "qrcode";
+import { api, connectEvents, type ImportSummary, type SuggestResult, type SuggestionItem, type PairInfo } from "./api";
 import { nodeTypes } from "./nodes";
 import { MoonMark, Moon } from "./moon";
 import { Inspector } from "./Inspector";
@@ -12,7 +13,7 @@ import { TEMPLATES, type Template } from "./templates";
 import type { NodeKind } from "./types";
 import {
   IconAgent, IconWait, IconApproval, IconRun, IconExport, IconImport, IconSave, IconUndo, IconRedo, IconEnd,
-  IconMinus, IconPlus, IconWrench, IconSearch, IconShield, IconBeaker, IconRetrace,
+  IconMinus, IconPlus, IconWrench, IconSearch, IconShield, IconBeaker, IconRetrace, IconPhone,
 } from "./icons";
 
 const ADD_ITEMS: Array<{ kind: NodeKind; label: string; sub: string; Icon: (p: { className?: string }) => JSX.Element }> = [
@@ -48,6 +49,7 @@ export function App() {
   const [runModal, setRunModal] = useState(false);
   const [review, setReview] = useState<{ summary: ImportSummary; workflow: Workflow } | null>(null);
   const [retrace, setRetrace] = useState<{ loading: boolean; result?: SuggestResult; error?: string } | null>(null);
+  const [pairing, setPairing] = useState<{ info: PairInfo; qr?: string; url?: string } | null>(null);
   // remember the last project directory — retyping an absolute path every run is friction
   const [projectRoot, setProjectRootRaw] = useState(() => localStorage.getItem("nocturne.projectRoot") ?? "");
   const setProjectRoot = useCallback((v: string) => {
@@ -140,6 +142,21 @@ export function App() {
     [loadWorkflow, setToast, rf],
   );
 
+  const openPairing = useCallback(async () => {
+    try {
+      const info = await api.pair();
+      if (!info.lan || !info.token || !info.addresses?.length) {
+        setPairing({ info });
+        return;
+      }
+      const url = `http://${info.addresses[0]}:${info.port}/?token=${encodeURIComponent(info.token)}`;
+      const qr = await QRCode.toDataURL(url, { width: 480, margin: 1, color: { dark: "#1f1e1d", light: "#ffffff" } });
+      setPairing({ info, qr, url });
+    } catch (e) {
+      setToast(`Pairing unavailable: ${(e as Error).message}`);
+    }
+  }, [setToast]);
+
   const openRetrace = useCallback(async () => {
     setRetrace({ loading: true });
     try {
@@ -179,7 +196,8 @@ export function App() {
       const mod = e.metaKey || e.ctrlKey;
       if (e.key === "Escape") {
         // Escape closes the topmost modal — never strands the user in an overlay
-        if (retrace) { if (!retrace.loading) setRetrace(null); }
+        if (pairing) setPairing(null);
+        else if (retrace) { if (!retrace.loading) setRetrace(null); }
         else if (review) setReview(null);
         else if (runModal) setRunModal(false);
         return;
@@ -280,6 +298,7 @@ export function App() {
         <button className="btn" data-testid="export-btn" onClick={doExport}><IconExport /> Export</button>
         <button className="btn" data-testid="save-btn" onClick={doSave}><IconSave /> Save</button>
         <button className="btn" data-testid="retrace-btn" title="Draft workflows from your recent Claude Code sessions" onClick={openRetrace}><IconRetrace /> Retrace</button>
+        <button className="btn ghost icon" data-testid="pair-btn" title="Pair a phone or tablet (QR)" onClick={openPairing}><IconPhone /></button>
         <button className="btn" data-testid="toggle-drawer" onClick={() => setDrawerOpen((o) => !o)}>Runs</button>
         <button className="btn primary" data-testid="run-btn" onClick={() => setRunModal(true)}><IconRun /> Run</button>
         <input ref={fileRef} type="file" accept=".json,.nocturne.json,application/json" style={{ display: "none" }}
@@ -442,6 +461,41 @@ export function App() {
 
             <div className="actions">
               <button className="btn ghost" onClick={() => setRetrace(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pairing && (
+        <div className="overlay" onClick={() => setPairing(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} data-testid="pair-modal">
+            <h2>Pair a device</h2>
+            {pairing.qr ? (
+              <>
+                <div className="sub">
+                  Scan with your phone or tablet on the <strong>same Wi-Fi</strong>. It connects
+                  straight to this daemon — peer-to-peer, nothing leaves your network.
+                </div>
+                <div className="qr-wrap">
+                  <img className="qr" src={pairing.qr} alt="Pairing QR code" />
+                </div>
+                <div className="pair-url mono">{pairing.url}</div>
+                <div className="hint" style={{ marginTop: 8 }}>
+                  Monitor runs, watch live activity, and approve gates from bed. Add it to your
+                  home screen for the full app feel.
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="sub">LAN access is off, so phones can’t reach the daemon yet.</div>
+                <div className="hint">
+                  Restart it with <code>nocturne serve --lan</code> — a one-time pairing token is
+                  minted and this dialog will show the QR to scan. Localhost needs no token.
+                </div>
+              </>
+            )}
+            <div className="actions">
+              <button className="btn ghost" onClick={() => setPairing(null)}>Close</button>
             </div>
           </div>
         </div>

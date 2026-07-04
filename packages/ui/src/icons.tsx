@@ -111,6 +111,13 @@ export const IconPlus = svg(
     <line x1="5" y1="12" x2="19" y2="12" />
   </>,
 );
+// pair — a handset on the meridian: companion device on the same night sky
+export const IconPhone = svg(
+  <>
+    <rect x="8" y="4" width="8" height="16" rx="1.5" />
+    <line x1="10.5" y1="17.5" x2="13.5" y2="17.5" />
+  </>,
+);
 // retrace — looking back over the night's trail: a counter-clockwise dial returning to a node
 export const IconRetrace = svg(
   <>
