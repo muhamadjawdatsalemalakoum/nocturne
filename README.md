@@ -103,6 +103,24 @@ Open http://localhost:5151, design a workflow, and press **Run**. The daemon run
 claude setup-token        # then put it in ~/.nocturne/config.json as "oauthToken"
 ```
 
+## Drive it from Claude (MCP)
+
+Beyond the canvas, Nocturne ships an **MCP server** (`@nocturne/mcp`) so you can launch and check on
+workflows **conversationally** — from Claude Code, Claude Desktop, Cursor, or any MCP client:
+
+> *"List my Nocturne workflows and run the overnight-refactor on this repo."*
+> *"How's that run doing?"* → *"It's waiting on the approval gate — approve it."*
+
+It's a thin adapter over the same daemon, so a run you kick off from a chat keeps going after the
+chat ends. Add it to Claude Code with one command:
+
+```bash
+claude mcp add nocturne -- node /abs/path/to/nocturne/packages/mcp/bin/nocturne-mcp.mjs
+```
+
+Full setup for Claude Code (plugin + skill), Claude Desktop (config + `.mcpb` bundle), and any MCP
+client is in [integrations/README.md](integrations/README.md).
+
 ## The workflow format (`*.nocturne.json`)
 
 The exported file **is** the canvas document **is** the library entry — one portable format everywhere.

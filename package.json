@@ -7,7 +7,8 @@
     "packages/core",
     "packages/engine",
     "packages/server",
-    "packages/ui"
+    "packages/ui",
+    "packages/mcp"
   ],
   "scripts": {
     "test": "vitest run",

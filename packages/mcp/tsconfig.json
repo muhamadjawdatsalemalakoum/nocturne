@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false,
+    "paths": {
+      "@nocturne/core": ["../core/src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}

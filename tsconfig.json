@@ -5,7 +5,8 @@
     "paths": {
       "@nocturne/core": ["packages/core/src/index.ts"],
       "@nocturne/engine": ["packages/engine/src/index.ts"],
-      "@nocturne/server": ["packages/server/src/index.ts"]
+      "@nocturne/server": ["packages/server/src/index.ts"],
+      "@nocturne/mcp": ["packages/mcp/src/index.ts"]
     },
     "noEmit": true
   },
@@ -15,6 +16,8 @@
     "packages/engine/src",
     "packages/engine/test",
     "packages/server/src",
-    "packages/server/test"
+    "packages/server/test",
+    "packages/mcp/src",
+    "packages/mcp/test"
   ]
 }

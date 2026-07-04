@@ -1,0 +1,9 @@
+{
+  "name": "nocturne",
+  "version": "0.1.0",
+  "description": "Drive durable, subscription-powered Claude Code workflows from Claude Code — launch overnight pipelines, check on runs, approve gates, and turn recent sessions into workflows.",
+  "author": { "name": "Nocturne contributors", "url": "https://github.com/muhamadjawdatsalemalakoum/nocturne" },
+  "homepage": "https://muhamadjawdatsalemalakoum.github.io/nocturne/",
+  "license": "MIT",
+  "keywords": ["mcp", "workflows", "automation", "claude-code", "orchestration"]
+}

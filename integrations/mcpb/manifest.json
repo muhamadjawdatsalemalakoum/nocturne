@@ -1,0 +1,38 @@
+{
+  "manifest_version": "0.2",
+  "name": "nocturne",
+  "display_name": "Nocturne",
+  "version": "0.1.0",
+  "description": "Design and run durable, multi-step Claude Code workflows — pipelines that survive the session closing and wait out usage-limit resets. Runs on your Claude subscription.",
+  "author": { "name": "Nocturne contributors", "url": "https://github.com/muhamadjawdatsalemalakoum/nocturne" },
+  "homepage": "https://muhamadjawdatsalemalakoum.github.io/nocturne/",
+  "documentation": "https://github.com/muhamadjawdatsalemalakoum/nocturne/blob/main/integrations/README.md",
+  "license": "MIT",
+  "keywords": ["mcp", "workflows", "automation", "claude-code", "orchestration"],
+  "server": {
+    "type": "node",
+    "entry_point": "server/bin/nocturne-mcp.mjs",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/bin/nocturne-mcp.mjs"]
+    }
+  },
+  "tools": [
+    { "name": "nocturne_status", "description": "Check the daemon is running." },
+    { "name": "list_workflows", "description": "List saved workflows." },
+    { "name": "get_workflow", "description": "Fetch a workflow as JSON." },
+    { "name": "save_workflow", "description": "Validate + save a workflow." },
+    { "name": "run_workflow", "description": "Start a durable run." },
+    { "name": "list_runs", "description": "List recent runs." },
+    { "name": "get_run", "description": "Poll a run's status + output." },
+    { "name": "approve_step", "description": "Approve/reject an approval gate." },
+    { "name": "pause_run", "description": "Pause a run." },
+    { "name": "resume_run", "description": "Resume a run or limit wait." },
+    { "name": "cancel_run", "description": "Cancel a run." },
+    { "name": "suggest_workflows", "description": "Retrace: draft workflows from recent sessions." }
+  ],
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": { "node": ">=18.0.0" }
+  }
+}

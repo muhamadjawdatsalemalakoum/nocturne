@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "nocturne": {
+      "command": "npx",
+      "args": ["-y", "@nocturne/mcp"]
+    }
+  }
+}
