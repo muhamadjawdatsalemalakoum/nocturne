@@ -762,8 +762,11 @@
 
   window.addEventListener('mousedown', function () { pressed = true; }, { passive: true });
   window.addEventListener('mouseup', function () { pressed = false; }, { passive: true });
-  var hide = function () { root.classList.remove('cursor-active'); shown = false; };
-  document.addEventListener('mouseleave', hide);
+  var hide = function () { root.classList.remove('cursor-active'); shown = false; setHover(false); };
+  // leave detection is flaky on Windows/Chrome (fast exits, other monitors) — use every signal
+  document.documentElement.addEventListener('mouseleave', hide);
+  document.addEventListener('mouseout', function (e) { if (!e.relatedTarget) hide(); });
+  document.addEventListener('visibilitychange', function () { if (document.hidden) hide(); });
   window.addEventListener('blur', hide);
 
   function frame() {
