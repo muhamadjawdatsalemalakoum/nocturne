@@ -346,7 +346,41 @@ child env is sanitized identically to run steps.
 each suggestion (name, description, rationale, step count) with **Open on canvas** and **Save to
 library**. Empty/error states carry a friendly note (no recent sessions, agent hit a limit, …).
 
-## 9. UI spec — the taste requirement
+## 9. MCP integration
+
+**Goal.** Make the daemon drivable from any MCP client — Claude Desktop, Claude Code, Cursor —
+without moving durable state out of the daemon. A run started from a chat must survive that chat
+ending, so the MCP layer is a *control surface*, never the engine.
+
+**Shape (`@nocturne/mcp`).** A stdio MCP server (the transport every client supports) that is a
+**thin adapter**: each tool forwards to the daemon's REST API over `localhost` (`NOCTURNE_DAEMON_URL`,
+default `127.0.0.1:5151`). MCP clients spawn the stdio server as a *per-session subprocess* and kill
+it on exit (per the MCP spec), so it holds no state — the daemon does. That per-session lifecycle is
+exactly why durable state can't live in the MCP layer.
+
+**Tools (12).** `nocturne_status`, `list_workflows`, `get_workflow`, `save_workflow`, `run_workflow`
+(returns a `runId` and returns immediately — the run continues unattended), `list_runs`, `get_run`
+(poll status / per-step output / cost), `approve_step`, `pause_run` / `resume_run` / `cancel_run`,
+`suggest_workflows` (Retrace, §8). Handlers return text and surface daemon / validation / timeout
+failures as tool errors (`isError`) — never crashing the JSON-RPC stream. **stdout carries only the
+protocol; all logging is on stderr.** Per-request timeouts (45 s; 5 min for the CLI-bound suggest) and
+a response-size cap guard against a hung or misbehaving daemon.
+
+**Auth is unchanged.** The daemon still spawns the official `claude` CLI, so runs draw from the
+subscription (§5); the MCP layer changes nothing about billing.
+
+**Packaging.**
+- **Claude Code:** `claude mcp add nocturne -- node …/nocturne-mcp.mjs`, or the plugin
+  (`.claude-plugin/plugin.json` + `.mcp.json`) which also bundles a `nocturne` skill.
+- **Claude Desktop:** a `claude_desktop_config.json` entry today, or a `.mcpb` Desktop Extension
+  (`server.type: "node"`) packed with the official `@anthropic-ai/mcpb` tool.
+- **Roadmap:** publish `@nocturne/mcp` to npm (activates the plugin's `npx` path); co-host an `/mcp`
+  Streamable-HTTP endpoint on the daemon for HTTP-capable clients; a Rust single-binary rewrite for
+  zero-Node distribution + robust Windows subprocess-tree control.
+
+Install steps: [integrations/README.md](integrations/README.md).
+
+## 10. UI spec — the taste requirement
 
 **Stack:** Vite, React 19, TypeScript, `@xyflow/react` (infinite canvas), zustand
 (+ zundo for undo/redo), Tailwind v4, lucide-react icons, Inter variable
@@ -394,7 +428,7 @@ Light theme = same tokens re-mapped; toggle in TopBar. No pure black/white anywh
 - Import: button **and** drag-a-file-onto-canvas → review dialog (§6) → adds to library.
 - Share = the file. README shows the "post your workflow" pattern.
 
-## 10. Testing strategy (TDD)
+## 11. Testing strategy (TDD)
 
 Layers, all runnable via `npm test` at root:
 
@@ -416,6 +450,9 @@ Layers, all runnable via `npm test` at root:
    approval gate flow, webhook fired.
 4. **server integration (vitest):** REST contract + WS event sequence over a real
    HTTP server on an ephemeral port with `NOCTURNE_HOME` in a temp dir.
+   **MCP (§9):** a real MCP `Client` ↔ the Nocturne MCP server ↔ a real daemon (+ fake-claude)
+   over the SDK in-memory transport — tools/list, save+list, run-to-completion, error paths,
+   Retrace — plus a raw stdio handshake asserting stdout stays protocol-pure.
 5. **e2e (Playwright):** drive the real UI against a real daemon + fake-claude:
    build a 3-node workflow on the canvas, set models, save, export, re-import,
    run, watch nodes go green, simulate limit → see waiting state → fake reset →
@@ -423,17 +460,18 @@ Layers, all runnable via `npm test` at root:
 6. **live smoke (opt-in, `NOCTURNE_LIVE=1`):** 2-step haiku workflow through the real
    CLI. Never runs in CI.
 
-## 11. Milestones
+## 12. Milestones
 
 - **M1 (this build):** everything above marked v1 — core, engine, server, canvas UI,
-  import/export, limit-aware waits, approvals, Retrace (§8), tests green end to end,
-  live-run verified.
+  import/export, limit-aware waits, approvals, Retrace (§8), the MCP server (§9),
+  tests green end to end, live-run verified.
 - **M1.1:** Windows wake helper (`install-wake`), `UsageApiOracle`, light theme audit,
-  `nocturne` npm publish, README + demo GIF, community-workflows folder.
+  publish `nocturne` + `@nocturne/mcp` to npm, a co-hosted `/mcp` HTTP endpoint,
+  README + demo GIF, community-workflows folder.
 - **M2:** conditional nodes (LLM-judged with explicit rubric), per-run cost budgets,
   workflow gallery site, macOS/Linux wake helpers.
 
-## 12. Open items
+## 13. Open items
 
 - **Subscription-auth headless run — RESOLVED (verified, sourced).** `claude -p`
   (non-`--bare`) runs on Pro/Max OAuth with no API key and draws from the flat-rate

@@ -167,6 +167,20 @@
   /* the precise pointer */
   .cursor-dot > i { width:5px; height:5px; background:var(--accent); transition:opacity .2s ease; }
   .cursor-dot.hover > i { opacity:0; }
+
+  /* ---------- chat mockup (the "drive from Claude" feature) ---------- */
+  .chatmock { background:var(--surface); border:1px solid var(--rule); border-radius:14px; box-shadow:var(--shadow); padding:16px 16px 8px; font-size:13.5px; }
+  .chatmock .msg { display:flex; gap:10px; margin:0 0 14px; }
+  .chatmock .who { flex:none; width:26px; height:26px; border-radius:50%; display:grid; place-items:center; font-family:var(--mono); font-size:10.5px; margin-top:1px; }
+  .chatmock .who.u { background:var(--surface-2); color:var(--muted); border:1px solid var(--rule); }
+  .chatmock .who.a { background:var(--accent-tint); color:var(--accent); font-size:15px; }
+  .chatmock .bubble { line-height:1.55; color:var(--text); }
+  .chatmock .bubble code { font-size:.82em; }
+  .chatmock .tool { display:flex; align-items:center; gap:8px; margin:9px 0; padding:6px 11px; border:1px solid var(--rule); border-radius:9px; background:var(--surface-2); font-family:var(--mono); font-size:11.5px; color:var(--muted); }
+  .chatmock .tool b { color:var(--accent); font-weight:500; }
+  .chatmock .tool .ok { margin-left:auto; color:var(--done); letter-spacing:.02em; }
+  .doors { display:flex; flex-wrap:wrap; gap:7px; margin-top:14px; }
+  .door { font-family:var(--mono); font-size:11px; color:var(--muted); border:1px solid var(--rule); border-radius:999px; padding:4px 11px; background:var(--surface); }
 </style>
 </head>
 <body>
@@ -180,6 +194,7 @@
     <span class="spacer"></span>
     <a class="nl" href="#features">Features</a>
     <a class="nl" href="#retrace">Retrace</a>
+    <a class="nl" href="#mcp">From Claude</a>
     <a class="nl" href="#journey">How it works</a>
     <a class="nl" href="#start">Quick start</a>
     <a class="btn sm primary" href="https://github.com/muhamadjawdatsalemalakoum/nocturne">GitHub ★</a>
@@ -325,6 +340,39 @@
       </div>
       <div class="shot"><img src="images/11-retrace.png" alt="Retrace drafting workflows from your recent sessions" /></div>
     </div>
+
+    <div class="feature flip" id="mcp">
+      <div class="copy">
+        <div class="eyebrow">Drive from Claude</div>
+        <h3>Run it from a conversation — no canvas required</h3>
+        <p>Nocturne ships an <strong>MCP server</strong>, so you can launch and check on durable runs
+        just by asking — in <strong>Claude Desktop</strong>, <strong>Claude Code</strong>, Cursor, or
+        any MCP client. It's a thin adapter over the same daemon, so a run you kick off from a chat
+        <strong>keeps going after the chat ends</strong>.</p>
+        <ul>
+          <li>12 tools — run, poll, approve, cancel, and Retrace — on your subscription</li>
+          <li>Add it to Claude Code in one line: <code>claude mcp add nocturne -- node …/nocturne-mcp.mjs</code></li>
+          <li>Claude Desktop via a <code>.mcpb</code> extension; a <code>nocturne</code> skill teaches Claude when to use it</li>
+        </ul>
+        <div class="doors">
+          <span class="door">the canvas</span>
+          <span class="door">Claude Code</span>
+          <span class="door">Claude Desktop</span>
+          <span class="door">any MCP client</span>
+        </div>
+      </div>
+      <div class="shot">
+        <div class="chatmock" aria-label="Example: driving Nocturne from a Claude chat">
+          <div class="msg"><span class="who u">you</span><div class="bubble">Run <strong>overnight-refactor</strong> on this repo and let it go — I'm heading out.</div></div>
+          <div class="msg"><span class="who a">◐</span><div class="bubble">On it.
+            <span class="tool"><b>nocturne · run_workflow</b><span class="ok">done</span></span>
+            Started run <code>r-8f0c</code>. It'll keep running after you close this — poll <code>get_run</code> anytime.</div></div>
+          <div class="msg"><span class="who u">you</span><div class="bubble">how's it going?</div></div>
+          <div class="msg"><span class="who a">◐</span><div class="bubble"><span class="tool"><b>nocturne · get_run</b><span class="ok">done</span></span>
+            3 of 4 steps green — it's holding at the approval gate. Approve it?</div></div>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -358,7 +406,8 @@
       <div class="card"><div class="ic">⇄</div><h4>Concurrency-safe</h4><p>A per-run lock and per-step read-modify-write persistence mean pausing or approving never races the executing steps.</p></div>
       <div class="card"><div class="ic">◈</div><h4>Fan-out &amp; join</h4><p>Branch into parallel subagents and AND-join their outputs. Each step is its own fresh context window.</p></div>
       <div class="card"><div class="ic">◑</div><h4>Retrace</h4><p>Reads your local session history and drafts workflows from it — compiled and schema-validated before you ever see them.</p></div>
-      <div class="card"><div class="ic">✔</div><h4>Tested end to end</h4><p>147 tests green — a scripted fake-claude verifies limit→wait→resume, crash recovery, approvals, fan-out, and Retrace deterministically.</p></div>
+      <div class="card"><div class="ic">⇌</div><h4>Drivable from Claude</h4><p>An MCP server exposes the daemon to Claude Desktop, Claude Code, and any MCP client — one daemon, four front doors.</p></div>
+      <div class="card"><div class="ic">✔</div><h4>Tested end to end</h4><p>154 tests green — a scripted fake-claude verifies limit→wait→resume, crash recovery, approvals, fan-out, Retrace, and the MCP round-trip deterministically.</p></div>
     </div>
   </div>
 </section>
