@@ -1279,8 +1279,9 @@ button {
     max-height: 52vh;
     max-height: 52dvh;
   }
-  .panel.left { z-index: 31; }
-  .panel.right { z-index: 32; }
+  /* stacked rows so both sheet headers stay tappable (right above left) */
+  .panel.right { bottom: 10px; z-index: 32; }
+  .panel.left { bottom: 66px; z-index: 31; }
   .panel.left.collapsed,
   .panel.right.collapsed { max-height: none; }
 

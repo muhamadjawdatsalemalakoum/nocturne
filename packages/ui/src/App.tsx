@@ -57,7 +57,11 @@ export function App() {
     try { localStorage.setItem("nocturne.projectRoot", v); } catch { /* private mode */ }
   }, []);
   const [paramValues, setParamValues] = useState<Record<string, string>>({});
-  const [collapse, setCollapse] = useState({ add: false, props: false });
+  // phones/tablets start canvas-first: both sheets collapsed (they'd overlap open)
+  const [collapse, setCollapse] = useState(() => {
+    const small = typeof matchMedia !== "undefined" && matchMedia("(max-width: 900px)").matches;
+    return { add: small, props: small };
+  });
   const toggle = (k: "add" | "props") => setCollapse((c) => ({ ...c, [k]: !c[k] }));
 
   useEffect(() => {
