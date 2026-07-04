@@ -117,11 +117,13 @@ function toResult(
   stderr: string,
   timedOut: boolean,
   spawnError = false,
+  aborted = false,
 ): ClaudeResult {
   const o = (raw ?? {}) as Record<string, unknown>;
-  const isError = timedOut || spawnError || o["is_error"] === true || exitCode !== 0 || raw == null;
+  const isError = timedOut || spawnError || aborted || o["is_error"] === true || exitCode !== 0 || raw == null;
   return {
     isError,
+    aborted,
     apiErrorStatus: typeof o["api_error_status"] === "number" ? (o["api_error_status"] as number) : undefined,
     text: typeof o["result"] === "string" ? (o["result"] as string) : "",
     sessionId: typeof o["session_id"] === "string" ? (o["session_id"] as string) : undefined,
@@ -135,6 +137,27 @@ function toResult(
 }
 
 const MAX_BUFFER = 4 * 1024 * 1024; // 4 MB cap on captured output
+
+/**
+ * Kill a child and its whole process tree. On Windows, `child.kill()` only
+ * signals the direct child (often a cmd shim), leaving the real node process
+ * running — `taskkill /T /F` walks the tree. POSIX gets a plain SIGKILL.
+ */
+export function killTree(child: { pid?: number; kill: (s?: NodeJS.Signals) => boolean }): void {
+  if (process.platform === "win32" && child.pid) {
+    try {
+      spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], { windowsHide: true });
+      return;
+    } catch {
+      /* fall through to plain kill */
+    }
+  }
+  try {
+    child.kill("SIGKILL");
+  } catch {
+    /* already gone */
+  }
+}
 
 export class CliClaudeRunner implements ClaudeRunner {
   constructor(
@@ -155,6 +178,7 @@ export class CliClaudeRunner implements ClaudeRunner {
       let out = "";
       let err = "";
       let timedOut = false;
+      let aborted = false;
       let settled = false;
       // streaming state
       let lineBuf = "";
@@ -162,8 +186,17 @@ export class CliClaudeRunner implements ClaudeRunner {
 
       const timer = setTimeout(() => {
         timedOut = true;
-        child.kill("SIGKILL");
+        killTree(child);
       }, o.timeoutMs);
+
+      const onAbort = () => {
+        aborted = true;
+        killTree(child);
+      };
+      if (o.signal) {
+        if (o.signal.aborted) onAbort();
+        else o.signal.addEventListener("abort", onAbort, { once: true });
+      }
 
       const handleLine = (line: string) => {
         const s = line.trim();
@@ -203,11 +236,12 @@ export class CliClaudeRunner implements ClaudeRunner {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        o.signal?.removeEventListener("abort", onAbort);
         if (streaming) {
           if (lineBuf.trim()) handleLine(lineBuf);
-          resolve(toResult(streamResult, exitCode, err, timedOut));
+          resolve(toResult(streamResult, exitCode, err, timedOut, false, aborted));
         } else {
-          resolve(toResult(parseCliJson(out), exitCode, err, timedOut));
+          resolve(toResult(parseCliJson(out), exitCode, err, timedOut, false, aborted));
         }
       };
 
@@ -215,7 +249,8 @@ export class CliClaudeRunner implements ClaudeRunner {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        resolve(toResult(null, -1, String(e), timedOut, true));
+        o.signal?.removeEventListener("abort", onAbort);
+        resolve(toResult(null, -1, String(e), timedOut, true, aborted));
       });
       child.on("close", (code) => finish(code ?? -1));
     });

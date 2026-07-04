@@ -112,14 +112,15 @@ workflows **conversationally** — from Claude Code, Claude Desktop, Cursor, or 
 > *"How's that run doing?"* → *"It's waiting on the approval gate — approve it."*
 
 It's a thin adapter over the same daemon, so a run you kick off from a chat keeps going after the
-chat ends. Add it to Claude Code with one command:
+chat ends. Install it in Claude Code (CLI, desktop app, or IDE extension) straight from this repo:
 
-```bash
-claude mcp add nocturne -- node /abs/path/to/nocturne/packages/mcp/bin/nocturne-mcp.mjs
+```
+/plugin marketplace add muhamadjawdatsalemalakoum/nocturne
+/plugin install nocturne@nocturne
 ```
 
-Full setup for Claude Code (plugin + skill), Claude Desktop (config + `.mcpb` bundle), and any MCP
-client is in [integrations/README.md](integrations/README.md).
+Full setup — Claude Code plugin + skill, Claude Desktop (`.mcpb` one-click extension or config),
+and any MCP client — is in [integrations/README.md](integrations/README.md).
 
 ## The workflow format (`*.nocturne.json`)
 

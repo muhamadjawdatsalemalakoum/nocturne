@@ -84,6 +84,8 @@ export interface ClaudeRunOptions {
   timeoutMs: number;
   /** when provided, the runner streams (--output-format stream-json) and calls this per event. */
   onActivity?: (a: ClaudeActivity) => void;
+  /** abort: kill the child process tree (cancel/pause). Result comes back with aborted=true. */
+  signal?: AbortSignal;
 }
 
 export interface ClaudeResult {
@@ -99,6 +101,8 @@ export interface ClaudeResult {
   timedOut?: boolean;
   /** set when the child failed to spawn (bad binary path, missing cwd, ENOENT) */
   spawnError?: boolean;
+  /** set when the caller aborted (cancel/pause) — not a step failure. */
+  aborted?: boolean;
 }
 
 export interface ClaudeRunner {

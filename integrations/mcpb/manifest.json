@@ -11,10 +11,10 @@
   "keywords": ["mcp", "workflows", "automation", "claude-code", "orchestration"],
   "server": {
     "type": "node",
-    "entry_point": "server/bin/nocturne-mcp.mjs",
+    "entry_point": "server/index.cjs",
     "mcp_config": {
       "command": "node",
-      "args": ["${__dirname}/server/bin/nocturne-mcp.mjs"]
+      "args": ["${__dirname}/server/index.cjs"]
     }
   },
   "tools": [

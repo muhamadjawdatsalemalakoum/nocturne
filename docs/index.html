@@ -407,7 +407,7 @@
       <div class="card"><div class="ic">◈</div><h4>Fan-out &amp; join</h4><p>Branch into parallel subagents and AND-join their outputs. Each step is its own fresh context window.</p></div>
       <div class="card"><div class="ic">◑</div><h4>Retrace</h4><p>Reads your local session history and drafts workflows from it — compiled and schema-validated before you ever see them.</p></div>
       <div class="card"><div class="ic">⇌</div><h4>Drivable from Claude</h4><p>An MCP server exposes the daemon to Claude Desktop, Claude Code, and any MCP client — one daemon, four front doors.</p></div>
-      <div class="card"><div class="ic">✔</div><h4>Tested end to end</h4><p>154 tests green — a scripted fake-claude verifies limit→wait→resume, crash recovery, approvals, fan-out, Retrace, and the MCP round-trip deterministically.</p></div>
+      <div class="card"><div class="ic">✔</div><h4>Tested end to end</h4><p>158 tests green, plus an independent audit that boots the real daemon binary, SIGKILLs it mid-run, and watches the run resume — limit waits, approvals, fan-out, Retrace, and the MCP loop included.</p></div>
     </div>
   </div>
 </section>

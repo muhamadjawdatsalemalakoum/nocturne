@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "nocturne": {
-      "command": "npx",
-      "args": ["-y", "@nocturne/mcp"]
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/server/index.cjs"]
     }
   }
 }

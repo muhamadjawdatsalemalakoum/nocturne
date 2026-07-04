@@ -50,6 +50,8 @@ export class Engine {
   private driving = new Map<string, Promise<void>>();
   /** per-run mutex: all state read-modify-write critical sections chain through this. */
   private runLocks = new Map<string, Promise<unknown>>();
+  /** per-run abort controllers for in-flight agent children (cancel/pause kills them). */
+  private aborts = new Map<string, AbortController>();
 
   constructor(deps: EngineDeps) {
     this.store = deps.store;
@@ -128,7 +130,17 @@ export class Engine {
       if (!state || isTerminal(state.status)) return false;
       const now = this.clock.now();
       if (state.status === "paused") {
-        // clear the stop so the driver will proceed past its paused/canceled guard
+        // clear the stop so the driver will proceed past its paused/canceled guard.
+        // Resume is also the retry gesture: failed steps (including rejected
+        // approvals) re-arm as pending so the run can move again instead of
+        // instantly re-settling into paused.
+        for (const s of Object.values(state.steps)) {
+          if (s.status === "failed") {
+            s.status = "pending";
+            delete s.error;
+            delete s.endedAt;
+          }
+        }
         state.status = "queued";
         delete state.error;
         await this.store.save(state);
@@ -170,25 +182,40 @@ export class Engine {
   }
 
   async pause(runId: string): Promise<RunState | null> {
-    return this.withRunLock(runId, async () => {
-      const state = await this.store.load(runId);
-      if (!state || isTerminal(state.status)) return state ?? null;
+    const state = await this.withRunLock(runId, async () => {
+      const s = await this.store.load(runId);
+      if (!s || isTerminal(s.status)) return s ?? null;
       this.clearTimer(runId);
-      await this.setRunStatus(state, "paused");
-      await this.store.save(state);
-      return state;
+      await this.setRunStatus(s, "paused");
+      await this.store.save(s);
+      return s;
     });
+    // kill any in-flight agent children — pausing must stop the spend now; the
+    // interrupted step re-arms as pending and re-runs on resume.
+    this.abortAgents(runId);
+    return state;
   }
 
   async cancel(runId: string): Promise<RunState | null> {
-    return this.withRunLock(runId, async () => {
-      const state = await this.store.load(runId);
-      if (!state) return null;
+    const state = await this.withRunLock(runId, async () => {
+      const s = await this.store.load(runId);
+      if (!s) return null;
       this.clearTimer(runId);
-      await this.setRunStatus(state, "canceled");
-      await this.store.save(state);
-      return state;
+      await this.setRunStatus(s, "canceled");
+      await this.store.save(s);
+      return s;
     });
+    this.abortAgents(runId);
+    return state;
+  }
+
+  /** Abort (tree-kill) any agent children currently executing for this run. */
+  private abortAgents(runId: string): void {
+    const ac = this.aborts.get(runId);
+    if (ac) {
+      this.aborts.delete(runId);
+      ac.abort();
+    }
   }
 
   /**
@@ -279,7 +306,14 @@ export class Engine {
       if (tick.kind === "again") continue;
       // run the agent batch OUTSIDE the lock; each agent persists its own step via
       // persistStep (lock-merge), so a concurrent approve/pause/cancel is never clobbered.
-      await Promise.all(tick.batch.map((s) => this.runAgent(tick.snapshot, s)));
+      // The batch shares one AbortController so cancel/pause can kill the children.
+      const ac = new AbortController();
+      this.aborts.set(runId, ac);
+      try {
+        await Promise.all(tick.batch.map((s) => this.runAgent(tick.snapshot, s, ac.signal)));
+      } finally {
+        if (this.aborts.get(runId) === ac) this.aborts.delete(runId);
+      }
       // reload happens at the next tick, picking up results + any control-op changes
     }
   }
@@ -339,7 +373,7 @@ export class Engine {
         s.output = "";
         progressed = true;
       } else if (node.type === "wait") {
-        const wakeAt = computeWakeAt(node.data, now, this.clock);
+        const wakeAt = computeWakeAt(node.data, now, this.clock, this.config.defaultLimitWaitMinutes);
         if (wakeAt <= now) {
           this.setStep(state, s, "succeeded");
           s.output = "";
@@ -400,7 +434,7 @@ export class Engine {
     await this.store.save(state);
   }
 
-  private async runAgent(state: RunState, step: StepRecord): Promise<void> {
+  private async runAgent(state: RunState, step: StepRecord, signal?: AbortSignal): Promise<void> {
     const node = nodeOf(state.workflow, step.nodeId)!;
     if (node.type !== "agent") return;
     const d = node.data;
@@ -468,10 +502,20 @@ export class Engine {
       outputSchema: d.outputSchema ?? undefined,
       timeoutMs,
       onActivity,
+      signal,
     });
 
     step.costUsd = (step.costUsd ?? 0) + result.costUsd;
     if (result.sessionId) step.sessionId = result.sessionId;
+
+    // user-initiated abort (cancel/pause): not a failure, not an attempt — the
+    // step re-arms as pending and re-runs on resume.
+    if (result.aborted) {
+      step.attempts -= 1;
+      delete step.wakeAt;
+      this.setStep(state, step, "pending", "interrupted by cancel/pause");
+      return;
+    }
 
     if (!result.isError) {
       step.output = result.text;
@@ -619,6 +663,7 @@ export function computeWakeAt(
   data: Extract<Workflow["nodes"][number], { type: "wait" }>["data"],
   now: number,
   _clock: Clock,
+  defaultLimitWaitMinutes = 60,
 ): number {
   if (data.mode === "duration") return now + data.minutes * 60 * 1000;
   if (data.mode === "until") {
@@ -630,9 +675,9 @@ export function computeWakeAt(
     if (cand.getTime() <= now) cand = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, h!, m!, 0, 0);
     return cand.getTime();
   }
-  // limitReset with no active error context → conservative default handled by oracle elsewhere;
-  // as a standalone node, wait a default hour.
-  return now + 60 * 60 * 1000;
+  // limitReset as a standalone node (no active limit error to parse): hold for the
+  // configured default window rather than a hardcoded hour.
+  return now + Math.max(1, defaultLimitWaitMinutes) * 60 * 1000;
 }
 
 function cryptoId(): string {

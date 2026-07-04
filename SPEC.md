@@ -459,6 +459,11 @@ Layers, all runnable via `npm test` at root:
    completed. Screenshot artifacts on failure.
 6. **live smoke (opt-in, `NOCTURNE_LIVE=1`):** 2-step haiku workflow through the real
    CLI. Never runs in CI.
+7. **independent audit (`node scripts/audit-e2e.mjs`):** exercises the advertised claims
+   through the REAL entry points — boots the daemon via its bin, runs fan-out/params/handoffs,
+   SIGKILLs the daemon mid-step and verifies auto-resume after restart, waits out a real-clock
+   limit reset, cancels a hanging child (tree-kill), drives Retrace, and completes a run through
+   the bundled stdio MCP server. Exits non-zero on any failure.
 
 ## 12. Milestones
 

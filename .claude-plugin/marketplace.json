@@ -1,0 +1,14 @@
+{
+  "name": "nocturne",
+  "owner": {
+    "name": "Nocturne contributors",
+    "url": "https://github.com/muhamadjawdatsalemalakoum/nocturne"
+  },
+  "plugins": [
+    {
+      "name": "nocturne",
+      "source": "./integrations/claude-plugin",
+      "description": "Drive durable, subscription-powered Claude Code workflows conversationally — launch overnight pipelines, check on runs, approve gates, and turn recent sessions into workflows. Requires the Nocturne daemon (`nocturne serve`)."
+    }
+  ]
+}

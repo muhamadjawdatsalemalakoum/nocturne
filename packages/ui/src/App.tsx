@@ -48,7 +48,12 @@ export function App() {
   const [runModal, setRunModal] = useState(false);
   const [review, setReview] = useState<{ summary: ImportSummary; workflow: Workflow } | null>(null);
   const [retrace, setRetrace] = useState<{ loading: boolean; result?: SuggestResult; error?: string } | null>(null);
-  const [projectRoot, setProjectRoot] = useState("");
+  // remember the last project directory — retyping an absolute path every run is friction
+  const [projectRoot, setProjectRootRaw] = useState(() => localStorage.getItem("nocturne.projectRoot") ?? "");
+  const setProjectRoot = useCallback((v: string) => {
+    setProjectRootRaw(v);
+    try { localStorage.setItem("nocturne.projectRoot", v); } catch { /* private mode */ }
+  }, []);
   const [paramValues, setParamValues] = useState<Record<string, string>>({});
   const [collapse, setCollapse] = useState({ add: false, props: false });
   const toggle = (k: "add" | "props") => setCollapse((c) => ({ ...c, [k]: !c[k] }));
@@ -72,11 +77,19 @@ export function App() {
     };
   }, [loadWorkflow, applyEvent]);
 
+  // a new document must never inherit the previous workflow's param inputs
+  useEffect(() => {
+    setParamValues({});
+  }, [meta.id]);
+
   useEffect(() => {
     if (!run || ["completed", "failed", "canceled"].includes(run.status)) return;
     const t = setInterval(async () => {
       try {
-        setRun(await api.getRun(run.runId));
+        const fresh = await api.getRun(run.runId);
+        // don't let an in-flight poll response clobber newer WS-driven state
+        const cur = useStore.getState().run;
+        if (!cur || cur.runId !== fresh.runId || fresh.updatedAt >= cur.updatedAt) setRun(fresh);
       } catch { /* ignore */ }
     }, 1500);
     return () => clearInterval(t);
@@ -164,6 +177,13 @@ export function App() {
       const tag = (e.target as HTMLElement).tagName;
       const typing = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
       const mod = e.metaKey || e.ctrlKey;
+      if (e.key === "Escape") {
+        // Escape closes the topmost modal — never strands the user in an overlay
+        if (retrace) { if (!retrace.loading) setRetrace(null); }
+        else if (review) setReview(null);
+        else if (runModal) setRunModal(false);
+        return;
+      }
       if (mod && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
       else if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); void doSave(); }
       else if (mod && e.key.toLowerCase() === "e") { e.preventDefault(); doExport(); }
@@ -319,7 +339,7 @@ export function App() {
             <div className="sub">Runs locally through your Claude subscription. It keeps running if you close this tab.</div>
             <div className="field">
               <label>Project directory</label>
-              <input className="input" data-testid="run-projectroot" type="text" value={projectRoot} onChange={(e) => setProjectRoot(e.target.value)} placeholder="C:\path\to\your\project" />
+              <input className="input" data-testid="run-projectroot" type="text" autoFocus value={projectRoot} onChange={(e) => setProjectRoot(e.target.value)} placeholder="C:\path\to\your\project" />
               <div className="hint">The absolute path to the repo the agents work in.</div>
             </div>
             {meta.params.map((p) => (
@@ -375,7 +395,7 @@ export function App() {
 
             {retrace.loading && (
               <div className="retrace-state" data-testid="retrace-loading">
-                <Moon phase="waxing" size={16} /> Reading your recent sessions and drafting workflows…
+                <Moon phase="waxing" size={16} /> Reading your recent sessions and drafting workflows — this runs a real agent and can take a minute or two…
               </div>
             )}
 

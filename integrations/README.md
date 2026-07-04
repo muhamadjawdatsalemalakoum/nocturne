@@ -23,24 +23,25 @@ inline workflow; it returns a `runId` immediately and the run continues unattend
 
 ---
 
-## Claude Code
+## Claude Code — CLI, desktop app, and IDE extensions
 
-**Quickest — add the server directly:**
+They all share one plugin system, so this works everywhere Claude Code runs:
 
-```bash
-# from a clone of this repo (runs the TypeScript server via tsx):
-claude mcp add nocturne -- node /abs/path/to/nocturne/packages/mcp/bin/nocturne-mcp.mjs
-
-# …or once @nocturne/mcp is published to npm:
-claude mcp add nocturne -- npx -y @nocturne/mcp
+```
+/plugin marketplace add muhamadjawdatsalemalakoum/nocturne
+/plugin install nocturne@nocturne
 ```
 
-**Or install the plugin** (bundles the MCP server config + a `nocturne` skill that teaches Claude
-when/how to use the tools) from [`integrations/claude-plugin/`](./claude-plugin/). The plugin runs
-`@nocturne/mcp` from npm, so it activates **once that package is published** — until then use the
-`claude mcp add` command above for local dev. See
-[`claude-plugin/README.md`](./claude-plugin/README.md) for details; the skill lives in
-[`skills/nocturne/SKILL.md`](./claude-plugin/skills/nocturne/SKILL.md).
+That installs the MCP server (a **self-contained bundled build** committed in the plugin — no npm
+publish, no build step) plus a `nocturne` skill that teaches Claude when and how to use it.
+
+Prefer raw MCP without the plugin? From a clone:
+
+```bash
+claude mcp add nocturne -- node /abs/path/to/nocturne/integrations/claude-plugin/server/index.cjs
+```
+
+Details: [`claude-plugin/README.md`](./claude-plugin/README.md).
 
 ## Claude Desktop
 
@@ -57,18 +58,15 @@ when/how to use the tools) from [`integrations/claude-plugin/`](./claude-plugin/
 }
 ```
 
-**One-click bundle (`.mcpb`):** [`integrations/mcpb/manifest.json`](./mcpb/manifest.json) is the
-Desktop Extension manifest (`server.type: "node"`) — full build steps in
-[`mcpb/README.md`](./mcpb/README.md). To build the installable bundle, stage the `@nocturne/mcp`
-package (with its dependencies) under `server/` next to the manifest and run the official packer:
+**One-click bundle (`.mcpb`):** two commands build a validated, self-contained extension:
 
 ```bash
-npm install -g @anthropic-ai/mcpb   # or: npx @anthropic-ai/mcpb
-mcpb pack                            # validates the manifest and produces nocturne.mcpb
+npm run build:mcp                    # bundle the server (single file, esbuild)
+cd integrations/mcpb && npx @anthropic-ai/mcpb pack
 ```
 
-Then double-click `nocturne.mcpb` to install it into Claude Desktop. (A self-contained, published
-bundle is on the roadmap; until then the config snippet above is the zero-build path.)
+Double-click the produced `.mcpb` to install it into Claude Desktop. Details in
+[`mcpb/README.md`](./mcpb/README.md).
 
 ## Any MCP client
 

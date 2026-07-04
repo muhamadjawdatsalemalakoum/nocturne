@@ -106,7 +106,13 @@ export function validateWorkflow(input: unknown): ValidationResult {
 
   // ---- per-node: portability + templates ----
   const ancestors = cycle.length ? new Map<string, Set<string>>() : ancestorMap(wf);
-  const paramNames = new Set(wf.params.map((p) => p.name));
+  const paramNames = new Set<string>();
+  for (const p of wf.params) {
+    if (paramNames.has(p.name)) {
+      errors.push({ code: "dup-param", message: `Duplicate param name "${p.name}" — later values silently shadow earlier ones` });
+    }
+    paramNames.add(p.name);
+  }
 
   // secret scan is best-effort — cover every field that gets serialized/shared, not
   // just agent prompts (a secret in a param default or approval message leaks too).

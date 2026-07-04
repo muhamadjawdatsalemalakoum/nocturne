@@ -101,8 +101,12 @@ export class DaemonClient {
     const label = `${init?.method ?? "GET"} ${path}`;
     try {
       const res = await this.fetchImpl(this.base + path, { ...init, signal: ctrl.signal });
-      const len = Number(res.headers.get("content-length") ?? "0");
-      if (len > MAX_RESPONSE_BYTES) throw new Error(`${label} returned an oversized response (${len} bytes).`);
+      // enforce only when the header is a real finite number — a malformed value
+      // must not NaN its way past the guard, and a missing header (chunked) is fine.
+      const len = Number(res.headers.get("content-length"));
+      if (Number.isFinite(len) && len > MAX_RESPONSE_BYTES) {
+        throw new Error(`${label} returned an oversized response (${len} bytes).`);
+      }
       if (!res.ok) {
         let msg = res.statusText;
         try {
@@ -117,6 +121,7 @@ export class DaemonClient {
     } catch (e) {
       if (ctrl.signal.aborted) throw new Error(`${label} timed out after ${Math.round(timeoutMs / 1000)}s.`);
       if (e instanceof TypeError) throw new DaemonDownError(this.base, e); // network-level fetch failure
+      if (e instanceof SyntaxError) throw new Error(`${label} returned invalid JSON — is something else listening on ${this.base}?`);
       throw e;
     } finally {
       clearTimeout(timer);

@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build:ui": "npm --workspace @nocturne/ui run build",
+    "build:mcp": "node scripts/build-mcp-bundle.mjs",
     "serve": "tsx packages/server/src/cli.ts",
     "e2e": "playwright test"
   },
