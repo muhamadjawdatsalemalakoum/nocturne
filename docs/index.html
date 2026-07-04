@@ -275,14 +275,14 @@
       <div class="copy">
         <div class="eyebrow">Design</div>
         <h3>Lay out a pipeline on an infinite canvas</h3>
-        <p>Drop in <strong>agent</strong> steps, timed <strong>waits</strong>, and human <strong>approval</strong> gates, then wire them together. Fan-out is just multiple outgoing edges; an AND-join is multiple incoming edges. Steps hand off with <code>{{steps.id.output}}</code>.</p>
+        <p>Drop in <strong>agent</strong> steps, timed <strong>waits</strong>, human <strong>approval</strong> gates, and <strong>if/else conditions</strong>, then wire them together. Fan-out is just multiple outgoing edges; an AND-join is multiple incoming edges. Steps hand off with <code>{{steps.id.output}}</code>.</p>
         <ul>
-          <li>Per-step model — Haiku for cheap work, Sonnet/Opus for the hard parts</li>
-          <li>Full-bleed canvas with floating panels that minimize and maximize</li>
-          <li>Start from a one-click template, or build from scratch</li>
+          <li>Branch like a flowchart: <em>tests green?</em> → ship, else fix — deterministic, no LLM in the control plane</li>
+          <li>Run any step ×N — outputs joined, cost tracked per pass</li>
+          <li>Per-step model — Haiku for cheap work, Sonnet/Opus for the hard parts — plus a searchable library of your saved workflows</li>
         </ul>
       </div>
-      <div class="shot"><img src="images/02-pipeline.png" alt="A three-step pipeline on the canvas" /></div>
+      <div class="shot"><img src="images/15-condition.png" alt="An if/else release gate: run tests, then ship or fix based on the verdict" /></div>
     </div>
 
     <div class="feature flip">

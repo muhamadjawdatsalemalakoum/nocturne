@@ -167,10 +167,17 @@ The exported file **is** the canvas document **is** the library entry — one po
 Export it, commit it, post it on Reddit; anyone can import and run it. Files carry no absolute paths and
 no secrets (the validator enforces both), so they move between machines cleanly.
 
-Node types: `start` · `agent` (per-step model, tools, cwd, permission mode, retry, session continuation) ·
-`wait` (`duration` / `until HH:MM` / `limitReset`) · `approval` · `end`. Fan-out = multiple outgoing
-edges; AND-join = multiple incoming edges. Prompts hand off with `{{steps.<id>.output}}` and take run
-inputs via `{{params.name}}`.
+Node types: `start` · `agent` (per-step model, tools, cwd, permission mode, retry, **run count ×N**,
+session continuation) · `wait` (`duration` / `until HH:MM` / `limitReset`) · `approval` ·
+**`condition` (if/else)** · `end`. Fan-out = multiple outgoing edges; AND-join = multiple incoming
+edges. Prompts hand off with `{{steps.<id>.output}}` and take run inputs via `{{params.name}}`.
+
+**Branch like a flowchart.** A condition node checks any upstream output or run input with a
+deterministic predicate — contains, equals, regex, numeric compare — and routes the run down its
+**✓ true** or **✕ false** edge; the untaken branch is skipped, joins just work. Test → *all green?*
+→ ship, else fix. No LLM in the control plane, so branching is reproducible:
+
+![An if/else release gate: test, then ship or fix](docs/images/15-condition.png)
 
 See [SPEC.md](SPEC.md) for the full format, execution semantics, and architecture.
 

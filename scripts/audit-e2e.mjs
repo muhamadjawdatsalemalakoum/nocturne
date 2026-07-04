@@ -73,6 +73,23 @@ async function main() {
   if (done1.steps.j.output.includes("BRANCH-DONE") && done1.steps.j.output.includes("PROMPT<")) ok("fan-out → AND-join with param + handoff substitution");
   else fail("fan-out/join", JSON.stringify(done1.steps.j.output).slice(0, 120));
 
+  console.log("\n— if/else condition: branch taken, other subtree skipped (REST) —");
+  writeScenario({ rules: [{ match: { contains: "probe" }, responses: [{ ok: "verdict: SHIP", cost: 0.001 }] }], default: { ok: "OK", cost: 0.001 } });
+  const condWf = wf("audit-cond", [
+    { id: "start", type: "start", position: { x: 0, y: 0 } }, agent("probe", "probe the state"),
+    { id: "gate", type: "condition", position: { x: 0, y: 0 }, data: { title: "Ship?", left: "{{steps.probe.output}}", op: "contains", value: "SHIP" } },
+    agent("yes", "ship path"), agent("no", "hold path"),
+    { id: "end", type: "end", position: { x: 0, y: 0 } },
+  ], [
+    { id: "c1", source: "start", target: "probe" }, { id: "c2", source: "probe", target: "gate" },
+    { id: "c3", source: "gate", target: "yes", branch: "true" }, { id: "c4", source: "gate", target: "no", branch: "false" },
+    { id: "c5", source: "yes", target: "end" }, { id: "c6", source: "no", target: "end" },
+  ]);
+  const rc = await post("/api/runs", { workflow: condWf, projectRoot: PROJ });
+  const dc = await until(async () => { const s = await api(`/api/runs/${rc.runId}`); return s.status === "completed" ? s : null; });
+  if (dc.steps.gate.output === "true" && dc.steps.yes.status === "succeeded" && dc.steps.no.status === "skipped") ok("condition routes true-branch; false subtree skipped; join completes");
+  else fail("condition", JSON.stringify({ gate: dc.steps.gate.output, yes: dc.steps.yes.status, no: dc.steps.no.status }));
+
   console.log("\n— approval gate (REST) —");
   const gate = wf("audit-gate", [
     { id: "start", type: "start", position: { x: 0, y: 0 } }, agent("impl", "implement"),

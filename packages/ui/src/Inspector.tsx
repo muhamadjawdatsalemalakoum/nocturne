@@ -94,7 +94,7 @@ export function Inspector() {
 
   return (
     <div className="inspector" data-testid="inspector">
-      <h3>{kind === "agent" ? (d.title as string) || "Agent step" : titleFor(kind)}</h3>
+      <h3>{kind === "agent" || kind === "condition" ? (d.title as string) || titleFor(kind) : titleFor(kind)}</h3>
       <div className="kind">{kind} node</div>
 
       {kind === "agent" && (
@@ -354,7 +354,7 @@ export function Inspector() {
 }
 
 function titleFor(kind: string): string {
-  return kind === "wait" ? "Wait" : kind === "approval" ? "Approval gate" : kind === "start" ? "Start" : "End";
+  return kind === "agent" ? "Agent step" : kind === "wait" ? "Wait" : kind === "approval" ? "Approval gate" : kind === "condition" ? "If / else" : kind === "start" ? "Start" : "End";
 }
 function permissionLabel(m: string): string {
   return m === "dontAsk" ? "Deny unlisted tools (safe default)" : m === "acceptEdits" ? "Auto-accept edits" : m === "bypassPermissions" ? "Bypass all checks" : m === "plan" ? "Plan mode" : "Ask (default)";

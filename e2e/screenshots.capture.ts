@@ -92,7 +92,7 @@ async function startRun(page: Page) {
   await page.getByTestId("run-projectroot").fill(E2E_PROJECT);
   await page.getByTestId("run-confirm").click();
   // collapse the settings panel so the floating Run panel is unobstructed
-  await page.locator(".panel.right .panel-toggle").click();
+  await page.locator(".panel.right .panel-head .panel-toggle").click();
 }
 
 test.beforeAll(async () => {
@@ -176,8 +176,8 @@ test("capture all journeys", async ({ page }) => {
 
   // 10 — Figma-style panels minimized for a full-bleed canvas
   await loadTemplate(page, "fix-tests");
-  await page.locator(".panel.left .panel-toggle").click();
-  await page.locator(".panel.right .panel-toggle").click();
+  await page.locator(".panel.left .panel-head .panel-toggle").click();
+  await page.locator(".panel.right .panel-head .panel-toggle").click();
   await page.waitForTimeout(300);
   await shot(page, "10-minimized.png");
 
@@ -188,4 +188,47 @@ test("capture all journeys", async ({ page }) => {
   await expect(page.getByTestId("suggestion-0")).toBeVisible({ timeout: 30_000 });
   await page.waitForTimeout(400);
   await shot(page, "11-retrace.png");
+  await page.keyboard.press("Escape");
+
+  // 15 — if/else: save a branchy workflow, open it FROM the library, inspect the predicate
+  const branchy = {
+    nocturne: 1, id: "demo-release-gate", name: "Release gate", description: "Test, then ship or fix based on the verdict.",
+    params: [],
+    nodes: [
+      { id: "start", type: "start", position: { x: 0, y: 170 } },
+      { id: "test", type: "agent", position: { x: 210, y: 140 }, data: { title: "Run the tests", prompt: "Run the full test suite and report PASS or FAIL with the failures.", model: "haiku", cwd: "", allowedTools: ["Read", "Bash"], permissionMode: "dontAsk", continueFrom: null, retry: { max: 1, backoffSec: 60 }, outputSchema: null } },
+      { id: "gate", type: "condition", position: { x: 500, y: 150 }, data: { title: "All green?", left: "{{steps.test.output}}", op: "contains", value: "PASS" } },
+      { id: "ship", type: "agent", position: { x: 780, y: 40 }, data: { title: "Ship it", prompt: "Commit and open a pull request.", model: "haiku", cwd: "", allowedTools: ["Bash"], permissionMode: "dontAsk", continueFrom: null, retry: { max: 1, backoffSec: 60 }, outputSchema: null } },
+      { id: "fix", type: "agent", position: { x: 780, y: 260 }, data: { title: "Fix the failures", prompt: "Fix the reported failures, then re-run the tests.", model: "sonnet", cwd: "", allowedTools: ["Read", "Edit", "Bash"], permissionMode: "dontAsk", continueFrom: null, retry: { max: 1, backoffSec: 60 }, outputSchema: null, repeat: 2 } },
+      { id: "end", type: "end", position: { x: 1060, y: 170 } },
+    ],
+    edges: [
+      { id: "e1", source: "start", target: "test" },
+      { id: "e2", source: "test", target: "gate" },
+      { id: "e3", source: "gate", target: "ship", branch: "true" },
+      { id: "e4", source: "gate", target: "fix", branch: "false" },
+      { id: "e5", source: "ship", target: "end" },
+      { id: "e6", source: "fix", target: "end" },
+    ],
+  };
+  await page.request.post("/api/workflows", { data: branchy });
+  await page.goto("/");
+  await page.getByTestId("saved-demo-release-gate").locator(".saved-open").click();
+  await page.waitForTimeout(500);
+  await page.locator(".node.condition").click();
+  await page.waitForTimeout(300);
+  await shot(page, "15-condition.png");
+
+  // 16 — run-inputs editor (params UX) on the workflow settings panel
+  await page.goto("/");
+  await page.locator(".rf, .react-flow").first().click({ position: { x: 300, y: 400 } }).catch(() => {});
+  await page.getByTestId("add-param").click();
+  await page.getByTestId("add-param").click();
+  const rows = page.locator(".param-row");
+  await rows.nth(0).locator(".pr-name").fill("ticket");
+  await rows.nth(0).locator(".pr-sub").first().fill("The issue to fix, e.g. NOC-42");
+  await rows.nth(1).locator(".pr-name").fill("branch");
+  await rows.nth(1).locator(".pr-sub").nth(1).fill("main");
+  await page.waitForTimeout(250);
+  await shot(page, "16-run-inputs.png");
 });

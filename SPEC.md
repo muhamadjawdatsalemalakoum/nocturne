@@ -103,6 +103,14 @@ The exported file **is** the library format **is** the canvas document. One form
 - Directed acyclic graph. Cycles are a validation error.
 - Multiple outgoing edges = parallel fan-out. Multiple incoming = AND-join
   (node becomes eligible when **all** upstream steps succeeded).
+- **Conditions (if/else):** a `condition` node holds a deterministic predicate —
+  `{ left: "{{steps.x.output}}", op: contains|not_contains|equals|not_equals|matches|not_empty|gt|lt, value }` —
+  and must have exactly one outgoing edge with `branch:"true"` and one with `branch:"false"`.
+  At run time the untaken branch's whole subtree is **skipped** (cascades); a join fed by both
+  branches is satisfied by whichever side ran (edge-aware OR across dead edges). No LLM in the
+  control plane — branching is reproducible.
+- **Run count:** agent nodes take `repeat: 1..20` — the step runs N times in sequence, outputs
+  joined with `---` dividers, cost accumulated per pass.
 - Exactly one `start`. ≥ 1 `end` reachable. Unreachable nodes = validation warning.
 - `position` is canvas-only; engine ignores it.
 
