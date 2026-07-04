@@ -114,8 +114,8 @@
   .disc { max-width:var(--maxw); margin:22px auto 0; padding:0 24px; color:var(--faint); font-size:12.5px; text-align:center; }
 
   /* ---------- lightbox ---------- */
-  .hero-shot img, .shot img, .step .thumb img { cursor:zoom-in; transition:box-shadow .18s, transform .18s; }
-  .shot img:hover, .step .thumb img:hover { transform:translateY(-2px); box-shadow:var(--shadow-lg); }
+  .hero-shot img, .shot img, .shots2 img, .step .thumb img { cursor:zoom-in; transition:box-shadow .18s, transform .18s; }
+  .shot img:hover, .shots2 img:hover, .step .thumb img:hover { transform:translateY(-2px); box-shadow:var(--shadow-lg); }
   .lb { position:fixed; inset:0; z-index:100; display:none; align-items:center; justify-content:center; }
   .lb.open { display:flex; }
   .lb__backdrop { position:absolute; inset:0; background:rgba(24,23,21,.74); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); opacity:0; transition:opacity .34s ease; }
@@ -552,7 +552,9 @@
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   // gallery of openable images, in document order
-  var imgs = Array.prototype.slice.call(document.querySelectorAll('.hero-shot img, .shot img, .step .thumb img'));
+  // every content screenshot on the page joins the gallery (feature shots, journey
+  // thumbs, the hero, and the mobile pair/phone frames) — decorative SVG marks don't.
+  var imgs = Array.prototype.slice.call(document.querySelectorAll('.hero-shot img, .shot img, .shots2 img, .step .thumb img'));
   if (!imgs.length) return;
   lb.classList.toggle('single', imgs.length < 2);
 
