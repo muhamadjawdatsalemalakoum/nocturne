@@ -112,6 +112,40 @@
   footer .wrap { display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
   footer .spacer { flex:1; }
   .disc { max-width:var(--maxw); margin:22px auto 0; padding:0 24px; color:var(--faint); font-size:12.5px; text-align:center; }
+
+  /* ---------- lightbox ---------- */
+  .hero-shot img, .shot img, .step .thumb img { cursor:zoom-in; transition:box-shadow .18s, transform .18s; }
+  .shot img:hover, .step .thumb img:hover { transform:translateY(-2px); box-shadow:var(--shadow-lg); }
+  .lb { position:fixed; inset:0; z-index:100; display:none; align-items:center; justify-content:center; }
+  .lb.open { display:flex; }
+  .lb__backdrop { position:absolute; inset:0; background:rgba(24,23,21,.74); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); opacity:0; transition:opacity .34s ease; }
+  .lb.shown .lb__backdrop { opacity:1; }
+  .lb__fig { position:relative; margin:0; display:flex; flex-direction:column; align-items:center; gap:14px; max-width:94vw; z-index:1; }
+  .lb__img { max-width:92vw; max-height:82vh; max-height:82dvh; width:auto; height:auto; border-radius:12px; border:1px solid rgba(255,255,255,.08); box-shadow:0 30px 80px rgba(0,0,0,.5); background:var(--surface); display:block; transform-origin:center center; cursor:default; }
+  .lb.open .lb__img { will-change:transform; } /* only while open, so the compositor layer is released on close */
+  .lb__cap { display:flex; align-items:center; gap:12px; color:rgba(245,244,238,.9); font-size:14px; opacity:0; transform:translateY(6px); transition:opacity .3s ease .06s, transform .3s ease .06s; text-align:center; padding:0 12px; }
+  .lb.shown .lb__cap { opacity:1; transform:none; }
+  .lb__count { font-family:var(--mono); font-size:11.5px; letter-spacing:.04em; color:rgba(245,244,238,.55); border:1px solid rgba(245,244,238,.18); border-radius:999px; padding:2px 9px; white-space:nowrap; }
+  .lb__btn { position:absolute; z-index:2; display:grid; place-items:center; border:1px solid rgba(245,244,238,.18); background:rgba(31,30,29,.55); color:#f5f4ee; border-radius:999px; cursor:pointer; opacity:0; transition:opacity .3s ease .04s, background .15s, border-color .15s, transform .15s; -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); }
+  .lb.shown .lb__btn { opacity:1; }
+  .lb__btn:hover { background:rgba(31,30,29,.85); border-color:rgba(245,244,238,.4); }
+  .lb__btn:focus-visible { outline:2px solid var(--accent-bright); outline-offset:2px; }
+  .lb__btn svg { width:22px; height:22px; stroke:currentColor; stroke-width:2; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+  .lb__close { top:18px; right:18px; width:44px; height:44px; }
+  .lb__nav { top:50%; margin-top:-26px; width:52px; height:52px; }
+  .lb__prev { left:18px; } .lb__next { right:18px; }
+  .lb__nav:active { transform:scale(.94); }
+  .lb.single .lb__nav { display:none; }
+  @media(max-width:640px){
+    .lb__nav { width:44px; height:44px; margin-top:-22px; }
+    .lb__prev { left:8px; } .lb__next { right:8px; }
+    .lb__close { top:10px; right:10px; }
+    .lb__img { max-height:78vh; max-height:78dvh; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .lb__backdrop, .lb__cap, .lb__btn, .shot img, .step .thumb img, .lb__img { transition:opacity .18s ease !important; }
+    .lb__img { will-change:auto; }
+  }
 </style>
 </head>
 <body>
@@ -337,6 +371,266 @@
   </div>
   <p class="disc">Not affiliated with Anthropic. “Claude” and “Claude Code” are trademarks of Anthropic. Screenshots use a scripted stand-in agent for reproducibility.</p>
 </footer>
+
+<!-- LIGHTBOX -->
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Image viewer" aria-hidden="true">
+  <div class="lb__backdrop" data-close></div>
+  <button class="lb__btn lb__close" type="button" data-close aria-label="Close (Esc)">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+  <button class="lb__btn lb__nav lb__prev" type="button" data-prev aria-label="Previous image">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+  </button>
+  <button class="lb__btn lb__nav lb__next" type="button" data-next aria-label="Next image">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+  </button>
+  <figure class="lb__fig">
+    <img class="lb__img" id="lbImg" alt="" />
+    <figcaption class="lb__cap"><span class="lb__count" id="lbCount"></span><span class="lb__alt" id="lbAlt"></span></figcaption>
+  </figure>
+</div>
+
+<script>
+(function () {
+  var lb = document.getElementById('lb');
+  if (!lb) return;
+  var lbImg = document.getElementById('lbImg');
+  var lbAlt = document.getElementById('lbAlt');
+  var lbCount = document.getElementById('lbCount');
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  // gallery of openable images, in document order
+  var imgs = Array.prototype.slice.call(document.querySelectorAll('.hero-shot img, .shot img, .step .thumb img'));
+  if (!imgs.length) return;
+  lb.classList.toggle('single', imgs.length < 2);
+
+  var index = 0, isOpen = false, busy = false, closing = false, lastFocus = null, swapTimer = null;
+
+  imgs.forEach(function (img, i) {
+    img.setAttribute('tabindex', '0');
+    img.setAttribute('role', 'button');
+    img.setAttribute('aria-label', 'View image' + (img.alt ? ': ' + img.alt : ''));
+    img.addEventListener('click', function () { open(i, img); });
+    img.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(i, img); }
+    });
+  });
+
+  function rectOf(el) { return el.getBoundingClientRect(); }
+  function usable(r) { return r && r.width > 1 && r.height > 1 && r.bottom > 0 && r.top < window.innerHeight; }
+
+  // Run cb exactly once when the transform transition on `el` ends — OR after
+  // `maxMs` as a hard fallback (transitionend is unreliable when the transform
+  // resolves to a no-op, the image fails to load, or the tab is backgrounded).
+  // Cancels any settle previously armed on the same element, so listeners and
+  // timers can never accumulate.
+  function settle(el, cb, maxMs) {
+    if (el._lbCancel) el._lbCancel();
+    var fired = false;
+    var fin = function () {
+      if (fired) return; fired = true;
+      el.removeEventListener('transitionend', onT);
+      clearTimeout(timer);
+      el._lbCancel = null;
+      cb();
+    };
+    var onT = function (e) { if (!e.propertyName || e.propertyName === 'transform' || e.propertyName === 'opacity') fin(); };
+    el.addEventListener('transitionend', onT);
+    var timer = setTimeout(fin, maxMs);
+    el._lbCancel = function () { fired = true; el.removeEventListener('transitionend', onT); clearTimeout(timer); el._lbCancel = null; };
+  }
+
+  function updateChrome() {
+    var it = imgs[index];
+    lbImg.alt = it.alt || '';
+    lbAlt.textContent = it.alt || '';
+    lbCount.textContent = (index + 1) + ' / ' + imgs.length;
+  }
+
+  function lockScroll() {
+    var sw = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = 'hidden';
+    if (sw > 0) document.body.style.paddingRight = sw + 'px';
+  }
+  function unlockScroll() {
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
+  }
+
+  // hide the rest of the page from AT + the tab order while the dialog is open,
+  // so screen-reader rotor / quick-nav can't wander into the background
+  function setBgInert(on) {
+    var kids = document.body.children;
+    for (var i = 0; i < kids.length; i++) {
+      var el = kids[i];
+      if (el === lb || el.tagName === 'SCRIPT') continue;
+      if (on) { el.setAttribute('inert', ''); el.setAttribute('aria-hidden', 'true'); }
+      else { el.removeAttribute('inert'); el.removeAttribute('aria-hidden'); }
+    }
+  }
+
+  function open(i, srcEl) {
+    if (isOpen && !busy) { index = i; updateChrome(); swap(); return; } // jump to image
+    if (busy || isOpen) return;
+    index = i;
+    lastFocus = srcEl || document.activeElement;
+    isOpen = true; busy = true;
+    lbImg.style.transition = 'none';
+    lbImg.style.opacity = '0'; // stay invisible until the FLIP start frame is set — no flash during decode
+    lbImg.src = imgs[i].currentSrc || imgs[i].src;
+    updateChrome();
+    lockScroll();
+    setBgInert(true);
+    lb.classList.add('open');
+    lb.setAttribute('aria-hidden', 'false');
+
+    var start = usable(rectOf(srcEl || imgs[i])) ? rectOf(srcEl || imgs[i]) : null;
+
+    var play = function () {
+      var F = rectOf(lbImg);
+      var s = start ? start.width / F.width : 1;
+      var dx = start ? (start.left + start.width / 2) - (F.left + F.width / 2) : 0;
+      var dy = start ? (start.top + start.height / 2) - (F.top + F.height / 2) : 0;
+      // no start rect, reduced motion, or a near-identity FLIP → plain fade (avoids a no-op transition that never ends)
+      if (reduce.matches || !start || (Math.abs(dx) < 4 && Math.abs(dy) < 4 && Math.abs(1 - s) < 0.02)) {
+        lbImg.style.transition = 'opacity .24s ease';
+        requestAnimationFrame(function () { lbImg.style.opacity = '1'; lb.classList.add('shown'); });
+        settle(lbImg, done, 400);
+        return;
+      }
+      lbImg.style.transition = 'none';
+      lbImg.style.transformOrigin = 'center center';
+      lbImg.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(' + Math.max(s, 0.04) + ')';
+      lbImg.style.opacity = '1';
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          lbImg.style.transition = 'transform .44s cubic-bezier(.22,1,.36,1)';
+          lbImg.style.transform = '';
+          lb.classList.add('shown');
+          settle(lbImg, done, 620);
+        });
+      });
+    };
+
+    if (lbImg.decode) lbImg.decode().then(play).catch(play);
+    else if (lbImg.complete) play();
+    else { lbImg.onload = play; lbImg.onerror = play; }
+    focusFirst();
+  }
+
+  function done() { busy = false; }
+
+  function swap() { // change image while open (nav / jump)
+    if (busy) return;
+    busy = true;
+    var apply = function () {
+      swapTimer = null;
+      lbImg.src = imgs[index].currentSrc || imgs[index].src;
+      var reveal = function () { lbImg.style.opacity = '1'; lbImg.style.transform = ''; settle(lbImg, function () { lbImg.style.transition = ''; busy = false; }, 320); };
+      if (lbImg.decode) lbImg.decode().then(reveal).catch(reveal); else reveal();
+    };
+    if (reduce.matches) { apply(); return; }
+    lbImg.style.transition = 'opacity .16s ease, transform .16s ease';
+    lbImg.style.opacity = '0';
+    lbImg.style.transform = 'scale(.97)';
+    swapTimer = setTimeout(apply, 150);
+  }
+
+  function go(dir) {
+    if (!isOpen || busy) return;
+    index = (index + dir + imgs.length) % imgs.length;
+    updateChrome();
+    swap();
+  }
+
+  function close() {
+    if (!isOpen || closing) return;
+    // close always wins — cancel any in-flight swap/settle so Escape/tap can't be swallowed mid-animation
+    closing = true; busy = true;
+    clearTimeout(swapTimer); swapTimer = null;
+    if (lbImg._lbCancel) lbImg._lbCancel();
+    lbImg.style.opacity = '1'; // in case a swap had faded it out
+    var T = usable(rectOf(imgs[index])) ? rectOf(imgs[index]) : null;
+    var finish = function () {
+      lb.classList.remove('open', 'shown');
+      lb.setAttribute('aria-hidden', 'true');
+      lbImg.style.transition = 'none';
+      lbImg.style.transform = '';
+      lbImg.style.opacity = '';
+      lbImg.removeAttribute('src');
+      setBgInert(false);
+      unlockScroll();
+      isOpen = false; busy = false; closing = false;
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
+    };
+    lb.classList.remove('shown');
+    if (reduce.matches || !T) {
+      lbImg.style.transition = 'opacity .2s ease';
+      requestAnimationFrame(function () { lbImg.style.opacity = '0'; });
+      settle(lbImg, finish, 320);
+      return;
+    }
+    var F = rectOf(lbImg);
+    var s = Math.max(T.width / F.width, 0.04);
+    var dx = (T.left + T.width / 2) - (F.left + F.width / 2);
+    var dy = (T.top + T.height / 2) - (F.top + F.height / 2);
+    lbImg.style.transition = 'transform .4s cubic-bezier(.4,0,.2,1)';
+    lbImg.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(' + s + ')';
+    settle(lbImg, finish, 520);
+  }
+
+  // ---- controls ----
+  lb.addEventListener('click', function (e) {
+    var t = e.target;
+    if (t.closest('[data-close]')) { close(); return; }
+    if (t.closest('[data-prev]')) { go(-1); return; }
+    if (t.closest('[data-next]')) { go(1); return; }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (!isOpen) return;
+    if (e.key === 'Escape') { e.preventDefault(); close(); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); go(1); }
+    else if (e.key === 'Tab') { trapFocus(e); }
+  });
+
+  function focusables() {
+    return Array.prototype.slice.call(lb.querySelectorAll('.lb__btn')).filter(function (b) {
+      return b.offsetParent !== null; // visible (nav hidden when single)
+    });
+  }
+  function focusFirst() {
+    var f = focusables();
+    if (f.length) (lb.querySelector('.lb__close') || f[0]).focus();
+  }
+  function trapFocus(e) {
+    var f = focusables();
+    if (!f.length) { e.preventDefault(); return; }
+    var first = f[0], last = f[f.length - 1], a = document.activeElement;
+    if (!lb.contains(a)) { e.preventDefault(); first.focus(); return; }
+    if (e.shiftKey && a === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && a === last) { e.preventDefault(); first.focus(); }
+  }
+
+  // ---- touch: swipe to navigate, deliberate swipe-down to close ----
+  var tsx = 0, tsy = 0, tst = 0, multi = false;
+  lb.addEventListener('touchstart', function (e) {
+    if (e.touches.length !== 1) { multi = true; return; }
+    multi = false;
+    tsx = e.touches[0].clientX; tsy = e.touches[0].clientY; tst = Date.now();
+  }, { passive: true });
+  lb.addEventListener('touchend', function (e) {
+    if (busy || multi || e.changedTouches.length !== 1) { multi = false; return; }
+    var t = e.changedTouches[0];
+    var dx = t.clientX - tsx, dy = t.clientY - tsy, dt = Date.now() - tst || 1;
+    if (dt > 600) return;
+    var vx = Math.abs(dx) / dt, vy = dy / dt;
+    if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 2 && vx > 0.12) { go(dx < 0 ? 1 : -1); }
+    else if (dy > 100 && dy > Math.abs(dx) * 1.5 && vy > 0.12) { close(); }
+  }, { passive: true });
+})();
+</script>
 
 </body>
 </html>
