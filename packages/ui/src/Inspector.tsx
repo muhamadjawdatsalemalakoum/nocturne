@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { useStore } from "./store";
 import { IconTrash } from "./icons";
 import { PROMPT_PRESETS, TOOL_PRESETS, TOOL_CHIPS, WAIT_DURATIONS } from "./templates";
+import { STEP_CATEGORIES, searchSteps, type LibraryStep } from "./steps";
 
 const MODELS = ["inherit", "haiku", "sonnet", "opus"] as const;
 const PERMISSION_MODES = ["dontAsk", "default", "acceptEdits", "bypassPermissions", "plan"] as const;
@@ -14,6 +16,9 @@ export function Inspector() {
   const setMeta = useStore((s) => s.setMeta);
   const del = useStore((s) => s.deleteSelected);
   const dup = useStore((s) => s.duplicateSelected);
+  const [libOpen, setLibOpen] = useState(false);
+  const [libQ, setLibQ] = useState("");
+  const [libCat, setLibCat] = useState<string | undefined>(undefined);
 
   const node = nodes.find((n) => n.id === selectedId) ?? null;
 
@@ -81,6 +86,7 @@ export function Inspector() {
               {PROMPT_PRESETS.map((p) => (
                 <button key={p.label} className="preset" onClick={() => applyPrompt(p.text)}>{p.label}</button>
               ))}
+              <button className="preset lib" data-testid="steps-lib-btn" onClick={() => setLibOpen(true)}>Library…</button>
             </div>
             <textarea data-testid="f-prompt" value={(d.prompt as string) ?? ""} onChange={(e) => update(node.id, { prompt: e.target.value })} placeholder="Tap a starter above, or write what this agent should do." />
             <div className="hint">Hand off with <code>{"{{steps.<id>.output}}"}</code>.</div>
@@ -199,6 +205,50 @@ export function Inspector() {
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
           <button className="btn" onClick={dup}>Duplicate</button>
           <button className="btn danger" data-testid="delete-node" onClick={del}><IconTrash /> Delete</button>
+        </div>
+      )}
+
+      {libOpen && (
+        <div className="overlay" onClick={() => setLibOpen(false)}>
+          <div className="modal wide steps-lib" onClick={(e) => e.stopPropagation()} data-testid="steps-lib">
+            <h2>Steps library</h2>
+            <div className="sub">Industry-standard steps for every kind of work — pick one, then make it yours.</div>
+            <input
+              className="input" autoFocus placeholder="Search: DRY, pivot, postmortem, SEO, executive summary…"
+              value={libQ} onChange={(e) => setLibQ(e.target.value)} data-testid="steps-search"
+            />
+            <div className="lib-cats">
+              <button className={`preset ${!libCat ? "on" : ""}`} onClick={() => setLibCat(undefined)}>All</button>
+              {STEP_CATEGORIES.map((c) => (
+                <button key={c} className={`preset ${libCat === c ? "on" : ""}`} onClick={() => setLibCat(libCat === c ? undefined : c)}>{c}</button>
+              ))}
+            </div>
+            <div className="lib-list">
+              {searchSteps(libQ, libCat).map((s: LibraryStep) => (
+                <button
+                  key={s.id} className="lib-item" data-testid={`lib-${s.id}`}
+                  onClick={() => {
+                    update(node.id, {
+                      prompt: s.prompt,
+                      title: s.title,
+                      ...(s.model ? { model: s.model } : {}),
+                      ...(s.tools ? { allowedTools: s.tools } : {}),
+                    });
+                    setLibOpen(false);
+                  }}
+                >
+                  <span className="li-top">
+                    <strong>{s.title}</strong>
+                    {s.standard && <span className="chip">{s.standard}</span>}
+                    <span className="li-cat">{s.category}</span>
+                  </span>
+                  <span className="li-preview">{s.prompt.slice(0, 130)}…</span>
+                </button>
+              ))}
+              {searchSteps(libQ, libCat).length === 0 && <div className="hint">Nothing matches — try fewer words.</div>}
+            </div>
+            <div className="actions"><button className="btn ghost" onClick={() => setLibOpen(false)}>Close</button></div>
+          </div>
         </div>
       )}
     </div>

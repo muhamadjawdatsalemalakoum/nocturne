@@ -1129,6 +1129,67 @@ button {
   color: var(--waiting);
 }
 
+/* ---------- steps library ---------- */
+.steps-lib .input {
+  margin: 6px 0 10px;
+}
+.lib-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.lib-cats .preset.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.lib-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 46vh;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.lib-item {
+  text-align: left;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-card);
+  background: var(--surface-2);
+  padding: 11px 13px;
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.lib-item:hover {
+  border-color: var(--rule-strong);
+  background: color-mix(in srgb, var(--accent) 3%, var(--surface-2));
+}
+.lib-item .li-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lib-item .li-top strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.lib-item .li-cat {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.lib-item .li-preview {
+  display: block;
+  margin-top: 5px;
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 /* ---------- pairing (QR) ---------- */
 .qr-wrap {
   display: grid;

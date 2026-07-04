@@ -122,6 +122,24 @@ chat ends. Install it in Claude Code (CLI, desktop app, or IDE extension) straig
 Full setup — Claude Code plugin + skill, Claude Desktop (`.mcpb` one-click extension or config),
 and any MCP client — is in [integrations/README.md](integrations/README.md).
 
+## Not just for coders — the steps library
+
+The built-in **steps library** ships searchable, ready-to-run steps that encode named industry
+practices across every kind of work — each one a complete brief with a definition of done:
+
+- **Coding** — DRY sweeps, single-source-of-truth audits, SOLID reviews, OWASP security passes,
+  test-pyramid gap fills, Conventional-Commits shipping
+- **Data & Excel** — tidy-data cleaning, pivot analyses with the "so what", six-dimension
+  data-quality gates
+- **Docs & slides** — assertion-evidence deck outlines, BLUF executive summaries, SOPs
+- **Writing, research, marketing, ops** — editing passes, MECE competitive maps, on-page SEO
+  audits, blameless 5-Whys postmortems, OKRs that actually measure
+
+![The searchable steps library](docs/images/14-steps-library.png)
+
+Select any agent step → **Library…** → search or filter by category → one tap applies the prompt,
+suggested model tier, and minimal tool grant.
+
 ## Take it to bed — the peer-to-peer mobile companion
 
 The first Claude Code plugin with a **peer-to-peer mobile companion**. Start the daemon with
@@ -136,8 +154,12 @@ nothing leaves your network.
 Full parity on the go: watch live agent activity stream in, approve gates from bed, pause /
 resume / cancel, and launch workflows — with phone-first sheets and big touch targets. Add it to
 your home screen (it's a PWA) for the full app feel. Security model: a one-time pairing token
-gates every LAN request and the WebSocket; localhost stays open exactly as before. A native
-Android app (CI-built APK) is in the works; iOS coming soon.
+gates every LAN request and the WebSocket; localhost stays open exactly as before.
+
+**Native Android app:** a Kotlin/Jetpack-Compose companion lives in [`mobile/`](mobile/) — QR
+pairing, live run monitoring, and approve/pause/resume/cancel, in full Nocturne branding. Every
+change builds `nocturne-android.apk` in GitHub Actions (the *android-apk* workflow → artifact;
+tagged releases attach it). iOS coming soon.
 
 ## The workflow format (`*.nocturne.json`)
 
