@@ -274,7 +274,7 @@
   header.hero { position:relative; overflow:hidden; }
   header.hero .wrap, .hero-shot { position:relative; z-index:1; }
   .hero-sky { position:absolute; inset:0; pointer-events:none; z-index:0; }
-  .hero-sky .hmoon { position:absolute; top:34px; right:8%; width:92px; height:92px; opacity:.9;
+  .hero-sky .hmoon { position:absolute; top:72px; right:11%; width:104px; height:104px; opacity:.9;
     filter:drop-shadow(0 0 26px color-mix(in srgb, var(--accent) 38%, transparent));
     animation:moonDrift 46s ease-in-out infinite; }
   @keyframes moonDrift { 0%,100% { transform:translate(0,0) rotate(-8deg); } 50% { transform:translate(-26px,14px) rotate(4deg); } }
@@ -285,25 +285,11 @@
   header.hero h1 em { font-style:normal; background:linear-gradient(105deg, var(--accent) 10%, #a05a41 45%, var(--accent-bright) 90%);
     -webkit-background-clip:text; background-clip:text; color:transparent; }
 
-  /* WHY + FEATURES — the product's own canvas beneath the argument, with the
-     stack's two-layer depth: a near clay field and a far ink field drifting
-     at different speeds in different directions */
-  #why, #features { position:relative; }
-  #why::before, #features::before { content:""; position:absolute; inset:0; pointer-events:none;
-    background-image:radial-gradient(color-mix(in srgb, var(--accent) 38%, transparent) 1.2px, transparent 1.6px);
-    background-size:24px 24px; opacity:.75;
-    -webkit-mask-image:linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent);
-    mask-image:linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent);
-    animation:gridDrift 70s linear infinite; }
-  #why::after, #features::after { content:""; position:absolute; inset:0; pointer-events:none;
-    background-image:radial-gradient(color-mix(in srgb, var(--ink, #1f1e1d) 30%, transparent) 1.6px, transparent 2px);
-    background-size:52px 52px; background-position:13px 9px; opacity:.28;
-    -webkit-mask-image:linear-gradient(180deg, transparent, #000 15%, #000 85%, transparent);
-    mask-image:linear-gradient(180deg, transparent, #000 15%, #000 85%, transparent);
-    animation:gridDriftFar 130s linear infinite; }
-  @keyframes gridDrift { to { background-position:264px 120px; } }
-  @keyframes gridDriftFar { to { background-position:-247px 113px; } }
-  #why .wrap, #features .wrap { position:relative; z-index:1; }
+  /* WHY / FEATURES / HERO / TRUST — living canvas scenes (2D canvas, JS-injected;
+     see the scene engine script). Sections just reserve the stage: */
+  #why, #features, #more { position:relative; }
+  #why .wrap, #features .wrap, #more .wrap { position:relative; z-index:1; }
+  .scene-canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:0; }
   /* the Nocturne column answers, one yes at a time. The cell stays a
      table-cell (a display swap shatters the table grid); fill-mode backwards
      hides it only through its delay, and no property outlives the animation. */
@@ -1195,6 +1181,154 @@
 </script>
 
 <script>
+/* Living scenes: each section's background is a small rendered world, the way
+   the stack section's sky is — not a texture. 2D canvas, DPR-capped, sticky
+   viewport-sized stage (tall sections don't allocate tall canvases), paused
+   off-screen and when the tab hides. Reduced motion gets one still frame. */
+(function () {
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var CLAY = '204,120,92', PEACH = '232,185,165', AMBER = '217,160,91', INK = '31,30,29', GREEN = '107,142,90';
+
+  function mount(host, init, draw) {
+    if (!host) return;
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;';
+    wrap.setAttribute('aria-hidden', 'true');
+    var c = document.createElement('canvas');
+    c.className = 'scene-canvas';
+    c.style.cssText = 'position:sticky;top:0;display:block;width:100%;height:100%;max-height:100vh;';
+    wrap.appendChild(c);
+    host.insertBefore(wrap, host.firstChild);
+    var ctx = c.getContext('2d');
+    var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    var W = 0, H = 0, state = null, run = false, vis = false, raf = 0, t0 = performance.now();
+    function size() {
+      var r = c.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      W = r.width; H = r.height;
+      c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      state = init(W, H);
+      if (reduce) { ctx.clearRect(0, 0, W, H); draw(ctx, 0, W, H, state); }
+    }
+    size();
+    window.addEventListener('resize', size);
+    if (reduce) return;
+    function frame(now) {
+      if (!run) return;
+      ctx.clearRect(0, 0, W, H);
+      draw(ctx, (now - t0) / 1000, W, H, state);
+      raf = requestAnimationFrame(frame);
+    }
+    function go(on) { if (on && !run) { run = true; raf = requestAnimationFrame(frame); } if (!on) { run = false; cancelAnimationFrame(raf); } }
+    new IntersectionObserver(function (es) { vis = es.some(function (e) { return e.isIntersecting; }); go(vis && !document.hidden); }, { rootMargin: '140px' }).observe(host);
+    document.addEventListener('visibilitychange', function () { go(vis && !document.hidden); });
+  }
+
+  function fadeEdges(ctx, W, H) {
+    ctx.globalCompositeOperation = 'destination-out';
+    var g1 = ctx.createLinearGradient(0, 0, 0, H);
+    g1.addColorStop(0, 'rgba(0,0,0,1)'); g1.addColorStop(0.14, 'rgba(0,0,0,0)');
+    g1.addColorStop(0.86, 'rgba(0,0,0,0)'); g1.addColorStop(1, 'rgba(0,0,0,1)');
+    ctx.fillStyle = g1; ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  // ---- first light: large warm orbs breathing across the section ----
+  function aurora(host, scale) {
+    mount(host, function (W, H) {
+      var cols = [CLAY, PEACH, AMBER, PEACH];
+      return [0, 1, 2, 3].map(function (i) {
+        return { x: [0.16, 0.82, 0.42, 0.68][i], y: [0.28, 0.2, 0.75, 0.6][i], r: [330, 300, 380, 250][i] * (scale || 1),
+                 a: [0.14, 0.12, 0.1, 0.09][i] * (scale || 1), col: cols[i], p: i * 1.7, s: 0.1 + i * 0.035 };
+      });
+    }, function (ctx, t, W, H, orbs) {
+      orbs.forEach(function (o) {
+        var x = o.x * W + Math.sin(t * o.s + o.p) * 46;
+        var y = o.y * H + Math.cos(t * o.s * 0.8 + o.p) * 30;
+        var r = o.r * (1 + 0.09 * Math.sin(t * 0.22 + o.p));
+        var g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, 'rgba(' + o.col + ',' + (o.a * (0.85 + 0.15 * Math.sin(t * 0.3 + o.p))) + ')');
+        g.addColorStop(1, 'rgba(' + o.col + ',0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(x - r, y - r, r * 2, r * 2);
+      });
+      fadeEdges(ctx, W, H);
+    });
+  }
+
+  // ---- the ghost canvas: a faint workflow running behind the story ----
+  function flow(host) {
+    mount(host, function (W, H) {
+      var gutterL = 0.035, gutterR = 0.8;
+      var spots = [
+        [gutterL, 0.1], [gutterR, 0.16], [gutterL + 0.03, 0.42], [gutterR + 0.04, 0.5],
+        [gutterL, 0.74], [gutterR, 0.82], [0.42, 0.04], [0.5, 0.92],
+      ];
+      var nodes = spots.map(function (s, i) {
+        return { fx: s[0], fy: s[1], w: 148 + (i % 3) * 26, h: 58, p: i * 1.31, bob: 5 + (i % 3) * 2 };
+      });
+      var edges = [[0, 2], [2, 4], [1, 3], [3, 5], [6, 1], [0, 6], [4, 7], [7, 5]];
+      return { nodes: nodes, edges: edges };
+    }, function (ctx, t, W, H, s) {
+      var pos = s.nodes.map(function (n) {
+        return { x: n.fx * W, y: n.fy * H + Math.sin(t * 0.24 + n.p) * n.bob, w: n.w, h: n.h, p: n.p };
+      });
+      // edges first: dashed beziers with a pulse traveling each wire
+      s.edges.forEach(function (e, k) {
+        var a = pos[e[0]], b = pos[e[1]];
+        var x1 = a.x + a.w, y1 = a.y + a.h / 2, x2 = b.x, y2 = b.y + b.h / 2;
+        if (x2 < x1) { x1 = a.x; x2 = b.x + b.w; }
+        var dx = (x2 - x1) * 0.45;
+        ctx.strokeStyle = 'rgba(' + CLAY + ',0.3)';
+        ctx.lineWidth = 1.4;
+        ctx.setLineDash([5, 7]);
+        ctx.lineDashOffset = -t * 16 - k * 4;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.bezierCurveTo(x1 + dx, y1, x2 - dx, y2, x2, y2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        var u = (t * 0.1 + k * 0.37) % 1, v = 1 - u;
+        var px = v * v * v * x1 + 3 * v * v * u * (x1 + dx) + 3 * v * u * u * (x2 - dx) + u * u * u * x2;
+        var py = v * v * v * y1 + 3 * v * v * u * y1 + 3 * v * u * u * y2 + u * u * u * y2;
+        ctx.fillStyle = 'rgba(' + CLAY + ',0.55)';
+        ctx.shadowColor = 'rgba(' + CLAY + ',0.5)'; ctx.shadowBlur = 7;
+        ctx.beginPath(); ctx.arc(px, py, 2.6, 0, 7); ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+      // ghost node cards
+      pos.forEach(function (n, i) {
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.strokeStyle = 'rgba(' + CLAY + ',0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(n.x, n.y, n.w, n.h, 11);
+        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = 'rgba(' + CLAY + ',0.5)';
+        ctx.beginPath(); ctx.arc(n.x + 15, n.y + 15, 4, 0, 7); ctx.fill();
+        ctx.fillStyle = 'rgba(' + INK + ',0.12)';
+        ctx.beginPath(); ctx.roundRect(n.x + 27, n.y + 11, n.w * 0.5, 7, 3.5); ctx.fill();
+        ctx.beginPath(); ctx.roundRect(n.x + 15, n.y + 30, n.w * 0.62, 6, 3); ctx.fill();
+        ctx.beginPath(); ctx.roundRect(n.x + 15, n.y + 42, n.w * 0.4, 6, 3); ctx.fill();
+        // status lamp: working clay, then a green completion flash
+        var cyc = (t * 0.22 + n.p) % 3;
+        if (cyc < 2.2) { ctx.fillStyle = 'rgba(' + CLAY + ',' + (0.35 + 0.25 * Math.sin(t * 2.4 + n.p)) + ')'; }
+        else { ctx.fillStyle = 'rgba(' + GREEN + ',' + (0.75 * (1 - (cyc - 2.2) / 0.8)) + ')'; }
+        ctx.beginPath(); ctx.arc(n.x + n.w - 14, n.y + 15, 4.2, 0, 7); ctx.fill();
+      });
+      fadeEdges(ctx, W, H);
+    });
+  }
+
+  aurora(document.querySelector('header.hero'), 1);
+  aurora(document.querySelector('#more'), 0.7);
+  flow(document.querySelector('#why'));
+  flow(document.querySelector('#features'));
+})();
+</script>
+
+<script>
 /* The run simulator: six steps advance in place against one stage. Auto-plays
    while in view (a thin fuse burns along the active step); the first human
    touch takes the wheel and the autopilot stands down. Reduced motion: no
@@ -1329,7 +1463,8 @@
       stars += '<span class="hstar' + (big ? ' big' : '') + '" style="left:' + (2 + ((si * 37) % 96)) + '%;top:' + (3 + ((si * 23) % 46)) + '%;--tw:' + (3 + (si % 5)) + 's;--td:' + ((si * 0.47) % 4).toFixed(2) + 's;--to:' + (big ? 0.75 : 0.4) + '"></span>';
     }
     sky.innerHTML = moonSvg + stars;
-    hero2.insertBefore(sky, hero2.firstChild);
+    // after the scene canvas (if present), before the content — stars over orbs
+    hero2.insertBefore(sky, hero2.querySelector('.wrap'));
   }
 
   // QUICK START — the terminal types itself the first time it's seen
