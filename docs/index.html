@@ -99,12 +99,15 @@
   header.hero .cta .btn:not(.primary) { border-color:rgba(245,244,238,.22); background:rgba(245,244,238,.06); color:#f5f4ee; }
   header.hero .cta .btn:not(.primary):hover { background:rgba(245,244,238,.12); border-color:rgba(245,244,238,.38); }
   header.hero .cta { display:flex; gap:12px; justify-content:center; margin-top:30px; flex-wrap:wrap; }
-  .hero-shot { max-width:calc(var(--maxw) - 40px); margin:52px auto 0; padding:0 24px 64px; }
-  .hero-shot img { width:100%; height:auto; border-radius:var(--r); border:1px solid rgba(245,244,238,.14); display:block;
+  .hero-shot { max-width:calc(var(--maxw) - 40px); margin:52px auto 0; padding:0 24px 230px; }
+  .hero-shot img { width:100%; height:auto; border-radius:var(--r); border:1px solid rgba(245,244,238,.14); display:block; background:#1d1a17;
     box-shadow:0 30px 90px rgba(0,0,0,.55), 0 0 60px color-mix(in srgb, var(--accent) 16%, transparent); }
-  /* dawn: the last breath of the hero fades into the ivory morning */
-  header.hero::after { content:""; position:absolute; left:0; right:0; bottom:0; height:150px; pointer-events:none; z-index:2;
-    background:linear-gradient(180deg, transparent, color-mix(in srgb, var(--accent) 7%, var(--bg)) 62%, var(--bg)); }
+  /* dawn: entirely BELOW the shot — night holds the screenshot, then the sky
+     warms through ember to ivory with a sun-glow rising at the horizon line */
+  header.hero::after { content:""; position:absolute; left:0; right:0; bottom:0; height:230px; pointer-events:none; z-index:2;
+    background:
+      radial-gradient(58% 150px at 50% 102%, color-mix(in srgb, var(--accent) 34%, transparent), transparent 72%),
+      linear-gradient(180deg, rgba(36,27,21,0) 0%, rgba(46,32,23,.55) 34%, color-mix(in srgb, var(--accent) 16%, #4a352a) 58%, color-mix(in srgb, var(--accent) 12%, var(--bg)) 82%, var(--bg) 100%); }
   /* the occasional meteor — one thin streak, long pauses */
   .hero-sky .hshoot { position:absolute; top:16%; left:-12%; width:150px; height:1.5px; border-radius:2px; opacity:0;
     background:linear-gradient(90deg, transparent, rgba(245,244,238,.9)); transform:rotate(9deg);
