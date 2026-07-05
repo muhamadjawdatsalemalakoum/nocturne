@@ -8,17 +8,17 @@
 <link rel="canonical" href="https://muhamadjawdatsalemalakoum.github.io/nocturne/" />
 <meta property="og:title" content="Nocturne — durable Claude Code workflows that run while you sleep" />
 <meta property="og:description" content="Design multi-agent Claude Code workflows on a canvas. Run them while you sleep — durable, local, on your subscription. Monitor from your phone, from anywhere." />
-<meta property="og:image" content="https://muhamadjawdatsalemalakoum.github.io/nocturne/images/07-waiting-reset.png" />
-<meta property="og:image:width" content="1280" />
-<meta property="og:image:height" content="720" />
-<meta property="og:image:alt" content="A Nocturne run paused on a usage-limit-reset wait, ready to resume" />
+<meta property="og:image" content="https://muhamadjawdatsalemalakoum.github.io/nocturne/images/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Nocturne — run Claude Code workflows while you sleep" />
 <meta property="og:url" content="https://muhamadjawdatsalemalakoum.github.io/nocturne/" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="Nocturne" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="Nocturne — durable Claude Code workflows that run while you sleep" />
 <meta name="twitter:description" content="Design multi-agent Claude Code workflows on a canvas and run them unattended overnight — durable, local, on your subscription. Peer-to-peer mobile companion included." />
-<meta name="twitter:image" content="https://muhamadjawdatsalemalakoum.github.io/nocturne/images/07-waiting-reset.png" />
+<meta name="twitter:image" content="https://muhamadjawdatsalemalakoum.github.io/nocturne/images/og-card.png" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23f5f4ee'/%3E%3Cdefs%3E%3CclipPath id='m'%3E%3Ccircle cx='12' cy='12' r='7'/%3E%3C/clipPath%3E%3C/defs%3E%3Ccircle cx='12' cy='12' r='7' fill='%23cc785c'/%3E%3Ccircle cx='16' cy='9.5' r='6.5' fill='%23f5f4ee' clip-path='url(%23m)'/%3E%3C/svg%3E" />
 <link rel="icon" type="image/png" sizes="192x192" href="favicon.png" />
 <script type="application/ld+json">
@@ -30,7 +30,7 @@
   "operatingSystem": "Windows, macOS, Linux, Android",
   "description": "A free, open-source workflow automation tool and scheduler for Claude Code: design multi-agent pipelines on a visual canvas and run them unattended overnight. Runs checkpoint at the usage limit, wait for the reset, and resume exactly where they stopped — locally, on your existing Claude subscription. Includes an end-to-end-encrypted peer-to-peer mobile companion that works from any network.",
   "url": "https://muhamadjawdatsalemalakoum.github.io/nocturne/",
-  "image": "https://muhamadjawdatsalemalakoum.github.io/nocturne/images/07-waiting-reset.png",
+  "image": "https://muhamadjawdatsalemalakoum.github.io/nocturne/images/og-card.png",
   "license": "https://opensource.org/licenses/MIT",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "softwareHelp": "https://github.com/muhamadjawdatsalemalakoum/nocturne#readme",
@@ -324,6 +324,24 @@
   header.hero h1 em { font-style:normal; background:linear-gradient(105deg, var(--accent) 10%, #a05a41 45%, var(--accent-bright) 90%);
     -webkit-background-clip:text; background-clip:text; color:transparent; }
 
+  /* THE THRESHOLD — a moon-pendant lowered from the night on a canvas wire,
+     swinging gently across the boundary; a pulse rides down and lights it.
+     (It lives in #why and hangs UP into the hero, so hero overflow can't clip it.) */
+  #why { padding-top:118px; }
+  .threshold { position:absolute; top:0; left:50%; transform:translate(-50%,-54%); z-index:2; pointer-events:none; }
+  .threshold svg { display:block; overflow:visible; transform-origin:32px 0; animation:thSway 7s ease-in-out infinite; }
+  @keyframes thSway { 0%,100% { transform:rotate(-2.2deg); } 50% { transform:rotate(2.2deg); } }
+  .threshold .thw { animation:thDash 1.3s linear infinite; }
+  @keyframes thDash { from { stroke-dashoffset:10; } to { stroke-dashoffset:0; } }
+  .threshold .thp { animation:thDrop 4.2s cubic-bezier(.5,0,.6,1) infinite; }
+  @keyframes thDrop { 0% { cy:2px; opacity:0; } 9% { opacity:1; } 60% { cy:84px; opacity:1; } 68% { cy:84px; opacity:0; } 100% { cy:84px; opacity:0; } }
+  .threshold .thm { animation:thGlow 4.2s ease-in-out infinite; }
+  @keyframes thGlow { 0%,52% { filter:none; } 64% { filter:drop-shadow(0 0 12px rgba(204,120,92,.85)); } 82%,100% { filter:none; } }
+  @media (prefers-reduced-motion: reduce){
+    .threshold svg, .threshold .thw, .threshold .thp, .threshold .thm { animation:none !important; }
+    .threshold .thp { opacity:0; }
+  }
+
   /* WHY / FEATURES / HERO / TRUST — living canvas scenes (2D canvas, JS-injected;
      see the scene engine script). Sections just reserve the stage: */
   #why, #features, #more { position:relative; }
@@ -461,6 +479,17 @@
 
 <!-- WHY -->
 <section id="why" class="alt">
+  <div class="threshold" aria-hidden="true">
+    <svg viewBox="0 0 64 128" width="64" height="128">
+      <line class="thw" x1="32" y1="0" x2="32" y2="85" stroke="#cc785c" stroke-width="1.6" stroke-dasharray="4 6" stroke-linecap="round" opacity=".6"/>
+      <circle class="thp" cx="32" cy="2" r="3" fill="#cc785c"/>
+      <g class="thm">
+        <circle cx="32" cy="104" r="17" fill="#fffdf9" stroke="#e0dcd1" stroke-width="1"/>
+        <circle cx="32" cy="104" r="9.5" fill="#cc785c"/>
+        <circle cx="36.5" cy="100.8" r="8.8" fill="#fffdf9"/>
+      </g>
+    </svg>
+  </div>
   <div class="wrap">
     <div class="sec-head">
       <div class="eyebrow">Why it exists</div>
