@@ -9,6 +9,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@nocturne/core": fileURLToPath(new URL("../core/src/index.ts", import.meta.url)),
+      "@nocturne/remote": fileURLToPath(new URL("../remote/src/index.ts", import.meta.url)),
     },
   },
   server: {

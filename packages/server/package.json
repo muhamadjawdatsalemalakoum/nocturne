@@ -4,7 +4,9 @@
   "type": "module",
   "license": "MIT",
   "main": "./src/index.ts",
-  "bin": { "nocturne": "./bin/nocturne.mjs" },
+  "bin": {
+    "nocturne": "./bin/nocturne.mjs"
+  },
   "exports": {
     ".": "./src/index.ts"
   },
@@ -16,10 +18,14 @@
     "@nocturne/engine": "0.1.0",
     "express": "^4.21.2",
     "tsx": "^4.19.2",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "@nocturne/remote": "0.1.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/ws": "^8.5.13"
+  },
+  "optionalDependencies": {
+    "node-datachannel": "^0.32.0"
   }
 }

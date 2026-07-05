@@ -257,7 +257,7 @@
           <tr><td>Durable multi-step orchestration with waits + resume</td><td class="n">partial</td><td class="n">no</td><td class="noc y">yes</td></tr>
           <tr><td>Visual design surface</td><td class="n">no</td><td class="n">no</td><td class="noc y">yes</td></tr>
           <tr><td>Turns your own session history into workflows</td><td class="n">no</td><td class="n">no</td><td class="noc y">yes</td></tr>
-          <tr><td>Peer-to-peer mobile companion (pair by QR, LAN-only)</td><td class="n">no</td><td class="n">no</td><td class="noc y">yes</td></tr>
+          <tr><td>Peer-to-peer mobile companion — pair by QR, works from any network, E2E-encrypted</td><td class="n">no</td><td class="n">no</td><td class="noc y">yes</td></tr>
         </tbody>
       </table>
     </div>
@@ -417,20 +417,25 @@
 
     <div class="feature" id="mobile">
       <div class="copy">
-        <div class="eyebrow">Mobile · peer-to-peer</div>
-        <h3>Take the night shift to bed</h3>
-        <p>The first Claude Code plugin with a <strong>peer-to-peer mobile companion</strong>. Start the
-        daemon with <code>--lan</code>, tap <strong>Pair device</strong>, and scan the QR — your phone or
-        tablet connects <strong>straight to your machine over your own Wi-Fi</strong>. No account, no
-        cloud, nothing leaves your network.</p>
+        <div class="eyebrow">Mobile · peer-to-peer · anywhere</div>
+        <h3>Take the night shift anywhere</h3>
+        <p>The first Claude Code plugin with a <strong>peer-to-peer mobile companion</strong> — and it is
+        not tied to your Wi-Fi. Start the daemon with <code>--remote</code>, scan the QR once, and your
+        phone monitors and drives your workflows <strong>from any network</strong> — home, office, coffee
+        shop, LTE. No account, no port-forwarding, no server of ours.</p>
         <ul>
-          <li>Full parity: watch live agent activity, approve gates, pause/resume/cancel, launch runs</li>
-          <li>Phone-first sheets and big touch targets; add to home screen for the full app feel (PWA)</li>
-          <li>One-time pairing token; localhost stays open exactly as before — native Android app in the works</li>
+          <li><strong>End-to-end encrypted, always.</strong> The key travels only inside the QR; the public
+          rendezvous relays that introduce your devices carry ciphertext they can never read</li>
+          <li><strong>Peer-to-peer when networks allow.</strong> The two ends upgrade themselves to a direct
+          WebRTC channel and leave the relays behind — the console shows <em>direct P2P</em> or
+          <em>encrypted relay</em>, honestly</li>
+          <li>Full parity: live agent activity, approve gates from bed, pause/resume/cancel, launch runs —
+          PWA on any phone, native Android app in <code>mobile/</code>. Same-Wi-Fi <code>--lan</code> mode
+          still there, fastest of all</li>
         </ul>
       </div>
       <div class="shots2">
-        <div><img src="images/12-pair.png" alt="The Pair device modal showing the QR invitation" /></div>
+        <div><img src="images/12-pair.png" alt="The Pair device modal — the Anywhere tab with its QR invitation" /></div>
         <div class="phone"><img src="images/13-mobile-run.png" alt="A live run monitored on a phone — streaming activity, approve and pause controls" /></div>
       </div>
     </div>

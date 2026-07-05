@@ -261,6 +261,35 @@ describe("server — LAN pairing", () => {
     expect(pair.lan).toBe(false);
   });
 
+  it("/api/pair carries the Anywhere invitation when the daemon runs with --remote", async () => {
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), "nocturne-srv-"));
+    const claudePath = await fakeClaudePath();
+    const runStore = new RunStore(home);
+    await runStore.init();
+    const workflowStore = new WorkflowStore(home);
+    await workflowStore.init();
+    const broadcaster = new Broadcaster();
+    const engine = new Engine({ store: runStore, config: { ...DEFAULT_CONFIG, claudePath }, runner: new CliClaudeRunner(claudePath) });
+    const running = await startServer(
+      {
+        engine, workflowStore, runStore, broadcaster,
+        remotePair: { url: "https://example.github.io/nocturne/app/#pair=abc123", name: "TEST-PC" },
+      },
+      0,
+    );
+    cleanups.push(async () => { await running.close(); await fs.rm(home, { recursive: true, force: true }).catch(() => {}); });
+
+    const pair = await (await fetch(`http://127.0.0.1:${running.port}/api/pair`)).json();
+    expect(pair.remote).toEqual({ url: "https://example.github.io/nocturne/app/#pair=abc123", name: "TEST-PC" });
+    // the invitation must live in the fragment — a query string would hit server logs
+    expect(pair.remote.url).toContain("#pair=");
+    expect(new URL(pair.remote.url).search).toBe("");
+    // and without --remote, no invitation is advertised
+    const { base } = await lanHarness();
+    const plain = await (await fetch(`${base}/api/pair`)).json();
+    expect(plain.remote).toBeUndefined();
+  });
+
   it("with a pairing token: LAN requests need the token, loopback does not", async () => {
     const os = await import("node:os");
     const { isLoopback, lanAddresses } = await import("../src/server.js");

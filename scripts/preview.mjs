@@ -4,7 +4,7 @@
 import path from "node:path";
 import os from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { mkdirSync, writeFileSync, existsSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");
@@ -32,9 +32,9 @@ if (process.env.NOCTURNE_CLAUDE_PATH) {
       2,
     ),
   );
-  if (!existsSync(scenarioPath)) {
-    writeFileSync(scenarioPath, JSON.stringify({ default: { ok: "STEP-DONE", cost: 0.002 } }));
-  }
+  // Always reset: a prior suite's test may rewrite the scenario mid-run (the
+  // streaming test does), and a stale scenario poisons the next boot.
+  writeFileSync(scenarioPath, JSON.stringify({ default: { ok: "STEP-DONE", cost: 0.002 } }));
 }
 
 await import(pathToFileURL(path.join(root, "packages", "server", "src", "cli.ts")).href);

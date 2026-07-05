@@ -140,26 +140,46 @@ practices across every kind of work — each one a complete brief with a definit
 Select any agent step → **Library…** → search or filter by category → one tap applies the prompt,
 suggested model tier, and minimal tool grant.
 
-## Take it to bed — the peer-to-peer mobile companion
+## Take it anywhere — the peer-to-peer mobile companion
 
-The first Claude Code plugin with a **peer-to-peer mobile companion**. Start the daemon with
-`nocturne serve --lan`, tap **Pair device** in the canvas, and scan the QR with your phone or
-tablet — it connects **straight to your machine over your own Wi-Fi**. No account, no cloud,
-nothing leaves your network.
+The first Claude Code plugin with a **peer-to-peer mobile companion** — and it is not LAN-bound.
+Start the daemon with `nocturne serve --remote`, tap **Pair device**, scan the QR once, and your
+phone can monitor and drive your workflows **from any network on earth**: home Wi-Fi, the office,
+a coffee shop, LTE behind carrier NAT. No account, no port-forwarding, no server of ours.
 
-| Pair by QR | Monitor from your phone |
+| Pair by QR — Anywhere or this Wi-Fi | Monitor from your phone |
 |---|---|
-| ![The Pair device modal with the QR invitation](docs/images/12-pair.png) | ![A live run on a phone](docs/images/13-mobile-run.png) |
+| ![The Pair device modal with the Anywhere QR invitation](docs/images/12-pair.png) | ![A live run on a phone](docs/images/13-mobile-run.png) |
+
+**How Anywhere works** (and why the claim survives scrutiny):
+
+- The QR carries a 32-byte secret in the URL *fragment* — it never touches a server, a query
+  string, or a log line. Every key derives from it.
+- Phone and daemon find each other through **public rendezvous relays** (the same commons
+  NIP-46 remote signers use) — both ends dial *out*, so it works from CGNAT/LTE by
+  construction. Everything they exchange is **end-to-end encrypted** (AES-256-GCM under
+  HKDF-derived directional keys); relays carry ciphertext they cannot read, ever.
+- The moment the networks allow it, the two ends **upgrade themselves to a direct
+  peer-to-peer WebRTC DataChannel** and leave the relays behind — full-fidelity live
+  streaming, no middleman. When NATs won't cooperate, the encrypted relay floor keeps
+  everything working. The console shows which tier you're on: **direct P2P** or
+  **encrypted relay**.
+- The phone console is a static page on GitHub Pages (this repo's `docs/app/`) — the same
+  canvas UI, transport swapped. Add it to your home screen (PWA) for the app feel.
 
 Full parity on the go: watch live agent activity stream in, approve gates from bed, pause /
-resume / cancel, and launch workflows — with phone-first sheets and big touch targets. Add it to
-your home screen (it's a PWA) for the full app feel. Security model: a one-time pairing token
-gates every LAN request and the WebSocket; localhost stays open exactly as before.
+resume / cancel, launch workflows. On the same Wi-Fi, `--lan` still gives you the direct
+local connection (fastest); both modes can run at once and the Pair dialog offers both QRs.
 
 **Native Android app:** a Kotlin/Jetpack-Compose companion lives in [`mobile/`](mobile/) — QR
-pairing, live run monitoring, and approve/pause/resume/cancel, in full Nocturne branding. Every
-change builds `nocturne-android.apk` in GitHub Actions (the *android-apk* workflow → artifact;
-tagged releases attach it). iOS coming soon.
+pairing (LAN and Anywhere), live run monitoring, and approve/pause/resume/cancel, in full
+Nocturne branding. Every change builds `nocturne-android.apk` in GitHub Actions (the
+*android-apk* workflow → artifact; tagged releases attach it). iOS coming soon.
+
+Threat model, wire protocol, and message budget are specified in [SPEC.md](SPEC.md) — and the
+whole path is proven by a live end-to-end test (`npm run e2e:anywhere`) that boots the real
+daemon, opens the real console build in a real browser, pairs them **through the real public
+relays**, runs a workflow, and approves a gate remotely.
 
 ## The workflow format (`*.nocturne.json`)
 
@@ -214,9 +234,12 @@ Key design points:
 
 ```bash
 npm test                                   # full unit + integration suite (vitest)
-npm run typecheck                          # core/engine/server
+npm run typecheck                          # core/engine/server/remote
 npm --workspace @nocturne/ui run typecheck # UI
 npx playwright test --config e2e/playwright.config.ts   # end-to-end
+npm run e2e:anywhere                       # LIVE Anywhere proof: real daemon + real console
+                                           #   paired through real public relays (needs internet)
+npm run build:console                      # build the phone console → docs/app/
 npm --workspace @nocturne/ui run dev       # UI dev server (proxies /api to the daemon)
 ```
 
@@ -226,9 +249,10 @@ fan-out/join are all verified deterministically without touching a real subscrip
 
 ## Status
 
-v1: canvas, engine, durable limit-aware waits, approvals, import/export, Retrace (workflow
-suggestions from your session history), full test suite green.
-Roadmap: OS-level wake helpers for machine-asleep waits, conditional nodes, a shared workflow gallery.
+v1: canvas, engine, durable limit-aware waits, approvals, conditions (if/else), import/export,
+Retrace (workflow suggestions from your session history), MCP server + Claude Code plugin,
+mobile companion with **Nocturne Anywhere** (internet-wide E2E-encrypted P2P), full test suite green.
+Roadmap: OS-level wake helpers for machine-asleep waits, iOS companion, a shared workflow gallery.
 
 ## License
 

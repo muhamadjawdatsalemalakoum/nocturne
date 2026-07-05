@@ -121,6 +121,12 @@ export interface EngineConfig {
   lan?: boolean;
   /** bearer token required from non-localhost clients when lan is on (QR pairing). */
   pairingToken?: string;
+  /** Nocturne Anywhere: reachable across the internet via E2E-encrypted P2P tunnel. */
+  remote?: boolean;
+  /** base64url 32-byte pairing secret every Anywhere key derives from (QR-only; never sent anywhere). */
+  remoteSecret?: string;
+  /** rendezvous relay override (wss:// URLs); defaults to the built-in public list. */
+  remoteRelays?: string[];
 }
 
 export const DEFAULT_CONFIG: EngineConfig = {

@@ -18,6 +18,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
+      - name: Unit tests (Anywhere wire-protocol vectors gate the APK)
+        run: gradle -p mobile/android :app:testDebugUnitTest --no-daemon
       - name: Build debug APK
         run: gradle -p mobile/android assembleDebug --no-daemon
       - name: Rename artifact

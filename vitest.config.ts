@@ -9,6 +9,7 @@ export default defineConfig({
       "@nocturne/core": r("./packages/core/src/index.ts"),
       "@nocturne/engine": r("./packages/engine/src/index.ts"),
       "@nocturne/server": r("./packages/server/src/index.ts"),
+      "@nocturne/remote": r("./packages/remote/src/index.ts"),
     },
   },
   test: {

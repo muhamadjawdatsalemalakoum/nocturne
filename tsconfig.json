@@ -6,7 +6,8 @@
       "@nocturne/core": ["packages/core/src/index.ts"],
       "@nocturne/engine": ["packages/engine/src/index.ts"],
       "@nocturne/server": ["packages/server/src/index.ts"],
-      "@nocturne/mcp": ["packages/mcp/src/index.ts"]
+      "@nocturne/mcp": ["packages/mcp/src/index.ts"],
+      "@nocturne/remote": ["packages/remote/src/index.ts"]
     },
     "noEmit": true
   },
@@ -18,6 +19,8 @@
     "packages/server/src",
     "packages/server/test",
     "packages/mcp/src",
-    "packages/mcp/test"
+    "packages/mcp/test",
+    "packages/remote/src",
+    "packages/remote/test"
   ]
 }

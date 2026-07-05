@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:remote": "vite build --base /nocturne/app/ --outDir ../../docs/app --emptyOutDir"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.2.9",
@@ -19,7 +20,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "zundo": "^2.3.0",
-    "zustand": "^5.0.2"
+    "zustand": "^5.0.2",
+    "@nocturne/remote": "0.1.0"
   },
   "devDependencies": {
     "@types/qrcode": "^1.5.6",

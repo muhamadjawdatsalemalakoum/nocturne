@@ -5,8 +5,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,17 +19,17 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
@@ -79,23 +77,36 @@ class Daemon(private val base: String, private val token: String?) {
         }
     }
 
-    fun health(): String = JSONObject(run(req("/api/health"))).optString("version", "?")
-    fun runs(): JSONArray = JSONArray(run(req("/api/runs")))
-    fun runDetail(id: String): JSONObject = JSONObject(run(req("/api/runs/$id")))
-    fun action(id: String, verb: String): JSONObject = JSONObject(run(req("/api/runs/$id/$verb", "POST")))
-    fun approve(id: String, nodeId: String, ok: Boolean): JSONObject =
-        JSONObject(run(req("/api/runs/$id/approve", "POST", JSONObject().put("nodeId", nodeId).put("approved", ok).toString())))
+    fun get(path: String): String = run(req(path))
+    fun post(path: String, body: String? = null): String = run(req(path, "POST", body))
 }
 
-// ---------- persistence for the pairing ----------
-fun saveDaemon(ctx: Context, url: String, token: String?) {
-    ctx.getSharedPreferences("nocturne", Context.MODE_PRIVATE).edit()
-        .putString("url", url).putString("token", token).apply()
+// ---------- persistence for the pairing (LAN url+token, or Anywhere payload blob) ----------
+sealed class Pairing {
+    data class Lan(val url: String, val token: String?) : Pairing()
+    data class Remote(val blob: String) : Pairing()
 }
-fun loadDaemon(ctx: Context): Pair<String, String?>? {
-    val p = ctx.getSharedPreferences("nocturne", Context.MODE_PRIVATE)
-    val url = p.getString("url", null) ?: return null
-    return Pair(url, p.getString("token", null))
+
+fun savePairing(ctx: Context, p: Pairing) {
+    val e = ctx.getSharedPreferences("nocturne", Context.MODE_PRIVATE).edit().clear()
+    when (p) {
+        is Pairing.Lan -> e.putString("url", p.url).putString("token", p.token)
+        is Pairing.Remote -> e.putString("anywhere", p.blob)
+    }
+    e.apply()
+}
+
+fun loadPairing(ctx: Context): Pairing? {
+    val prefs = ctx.getSharedPreferences("nocturne", Context.MODE_PRIVATE)
+    val blob = prefs.getString("anywhere", null)
+    if (!blob.isNullOrBlank()) return Pairing.Remote(blob)
+    val url = prefs.getString("url", null)
+    if (url.isNullOrBlank()) return null
+    return Pairing.Lan(url, prefs.getString("token", null))
+}
+
+fun clearPairing(ctx: Context) {
+    ctx.getSharedPreferences("nocturne", Context.MODE_PRIVATE).edit().clear().apply()
 }
 
 class MainActivity : ComponentActivity() {
@@ -108,7 +119,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun NocturneApp() {
     val ctx = androidx.compose.ui.platform.LocalContext.current
-    var pairing by remember { mutableStateOf(loadDaemon(ctx)) }
+    var pairing by remember { mutableStateOf(loadPairing(ctx)) }
     MaterialTheme(
         colorScheme = lightColorScheme(
             primary = Clay, background = Cream, surface = Color.White,
@@ -116,30 +127,78 @@ fun NocturneApp() {
         ),
     ) {
         Surface(Modifier.fillMaxSize(), color = Cream) {
-            val p = pairing
-            if (p == null) PairScreen { url, token -> saveDaemon(ctx, url, token); pairing = Pair(url, token) }
-            else RunsScreen(daemon = Daemon(p.first, p.second), baseUrl = p.first) {
-                saveDaemon(ctx, "", null)
-                ctx.getSharedPreferences("nocturne", Context.MODE_PRIVATE).edit().clear().apply()
-                pairing = null
+            val unpair: () -> Unit = { clearPairing(ctx); pairing = null }
+            when (val p = pairing) {
+                null -> PairScreen { paired -> savePairing(ctx, paired); pairing = paired }
+                is Pairing.Lan -> {
+                    val transport = remember(p) { LanTransport(Daemon(p.url, p.token)) }
+                    RunsScreen(transport = transport, subtitle = p.url, badge = null, onUnpair = unpair)
+                }
+                is Pairing.Remote -> RemoteHome(blob = p.blob, onUnpair = unpair)
             }
         }
     }
 }
 
+/** Anywhere mode: owns the tunnel, ties it to the foreground lifecycle, feeds the badge. */
+@Composable
+fun RemoteHome(blob: String, onUnpair: () -> Unit) {
+    val payloadOrNull = remember(blob) { try { decodePairingPayload(blob) } catch (e: Exception) { null } }
+    if (payloadOrNull == null) {
+        // stored payload is corrupt — drop back to pairing
+        LaunchedEffect(blob) { onUnpair() }
+        return
+    }
+    val payload: PairingPayload = payloadOrNull
+    val tunnel = remember(blob) { Tunnel(payload) }
+    val transport = remember(blob) { TunnelTransport(tunnel) }
+    var badge by remember { mutableStateOf(tunnel.badge) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(tunnel, lifecycleOwner) {
+        tunnel.onStatus = { b -> badge = b }
+        // relays are public infrastructure: connect only while foregrounded
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> tunnel.start()
+                Lifecycle.Event.ON_STOP -> tunnel.stop()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            tunnel.onStatus = null
+            tunnel.stop()
+        }
+    }
+    RunsScreen(transport = transport, subtitle = payload.name, badge = badge, onUnpair = onUnpair)
+}
+
 // ---------- pairing ----------
 @Composable
-fun PairScreen(onPaired: (String, String?) -> Unit) {
+fun PairScreen(onPaired: (Pairing) -> Unit) {
     var manualUrl by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
     fun accept(raw: String) {
+        // Anywhere QR: console URL with #pair=<blob>, or the raw payload blob itself
+        val blob = pairingBlobFrom(raw)
+        if (blob != null) {
+            try {
+                decodePairingPayload(blob) // validates version, secret length, relays
+                onPaired(Pairing.Remote(blob))
+            } catch (e: Exception) {
+                error = "That Anywhere pairing code didn't validate."
+            }
+            return
+        }
+        // LAN QR: plain daemon URL with ?token=
         try {
             val uri = android.net.Uri.parse(raw.trim())
             val token = uri.getQueryParameter("token")
             val base = "${uri.scheme ?: "http"}://${uri.host}:${if (uri.port > 0) uri.port else 5151}"
             if (uri.host.isNullOrBlank()) throw RuntimeException("no host")
-            onPaired(base, token)
+            onPaired(Pairing.Lan(base, token))
         } catch (e: Exception) {
             error = "That doesn't look like a Nocturne pairing link."
         }
@@ -158,7 +217,7 @@ fun PairScreen(onPaired: (String, String?) -> Unit) {
         Spacer(Modifier.height(18.dp))
         Text("Nocturne", fontSize = 32.sp, fontWeight = FontWeight.Medium, color = Ink)
         Text(
-            "Pair with the daemon on your computer.\nSame Wi-Fi · peer-to-peer · nothing leaves your network.",
+            "Pair with the daemon on your computer.\nSame Wi-Fi, or from anywhere over an encrypted relay.",
             color = Muted, fontSize = 14.sp, lineHeight = 20.sp,
             modifier = Modifier.padding(top = 10.dp, bottom = 26.dp),
         )
@@ -181,7 +240,7 @@ fun PairScreen(onPaired: (String, String?) -> Unit) {
         error?.let { Text(it, color = Brick, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp)) }
         Spacer(Modifier.height(30.dp))
         Text(
-            "On your computer: nocturne serve --lan, then tap the phone icon in the toolbar.",
+            "On your computer: nocturne serve --lan (same Wi-Fi), or scan the Anywhere QR to control runs from any network.",
             color = Muted, fontSize = 12.sp, lineHeight = 17.sp,
         )
     }
@@ -189,7 +248,7 @@ fun PairScreen(onPaired: (String, String?) -> Unit) {
 
 // ---------- runs ----------
 @Composable
-fun RunsScreen(daemon: Daemon, baseUrl: String, onUnpair: () -> Unit) {
+fun RunsScreen(transport: DaemonTransport, subtitle: String, badge: AnywhereBadge?, onUnpair: () -> Unit) {
     var runs by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
     var selected by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -197,17 +256,22 @@ fun RunsScreen(daemon: Daemon, baseUrl: String, onUnpair: () -> Unit) {
 
     suspend fun refresh() {
         try {
-            val arr = withContext(Dispatchers.IO) { daemon.runs() }
+            val arr = transport.getArray("/api/runs")
             runs = (0 until arr.length()).map { arr.getJSONObject(it) }
                 .sortedByDescending { it.optLong("createdAt") }
             error = null
         } catch (e: Exception) { error = e.message }
     }
     LaunchedEffect(Unit) { while (true) { refresh(); delay(2500) } }
+    DisposableEffect(transport) {
+        // live "ev" pushes over the tunnel trigger an immediate re-pull; polling stays the safety net
+        transport.setEventListener { scope.launch { refresh() } }
+        onDispose { transport.setEventListener(null) }
+    }
 
     val sel = selected
     if (sel != null) {
-        RunDetailScreen(daemon, sel, onBack = { selected = null })
+        RunDetailScreen(transport, sel, onBack = { selected = null })
         return
     }
 
@@ -220,7 +284,20 @@ fun RunsScreen(daemon: Daemon, baseUrl: String, onUnpair: () -> Unit) {
             Spacer(Modifier.weight(1f))
             TextButton(onClick = onUnpair) { Text("Unpair", color = Muted, fontSize = 13.sp) }
         }
-        Text(baseUrl, color = Muted, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+        if (badge != null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(7.dp).background(Ochre, CircleShape))
+                Spacer(Modifier.width(6.dp))
+                val label = if (badge.connected) {
+                    val name = badge.daemonName
+                    if (name.isNullOrBlank()) "Anywhere · encrypted relay"
+                    else "Anywhere · encrypted relay · $name"
+                } else "Anywhere · connecting…"
+                Text(label, color = Muted, fontSize = 12.sp)
+            }
+        } else {
+            Text(subtitle, color = Muted, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+        }
         Spacer(Modifier.height(14.dp))
         error?.let {
             Card(colors = CardDefaults.cardColors(containerColor = ClayTint), shape = RoundedCornerShape(12.dp)) {
@@ -258,18 +335,18 @@ fun RunsScreen(daemon: Daemon, baseUrl: String, onUnpair: () -> Unit) {
 
 // ---------- run detail ----------
 @Composable
-fun RunDetailScreen(daemon: Daemon, runId: String, onBack: () -> Unit) {
+fun RunDetailScreen(transport: DaemonTransport, runId: String, onBack: () -> Unit) {
     var run by remember { mutableStateOf<JSONObject?>(null) }
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     suspend fun refresh() {
-        try { run = withContext(Dispatchers.IO) { daemon.runDetail(runId) } } catch (_: Exception) {}
+        try { run = transport.getObject("/api/runs/$runId") } catch (_: Exception) {}
     }
     LaunchedEffect(runId) { while (true) { refresh(); delay(1500) } }
 
     fun act(block: suspend () -> Unit) {
-        scope.launch { busy = true; try { withContext(Dispatchers.IO) { block() } } catch (_: Exception) {}; refresh(); busy = false }
+        scope.launch { busy = true; try { block() } catch (_: Exception) {}; refresh(); busy = false }
     }
 
     val r = run
@@ -291,11 +368,11 @@ fun RunDetailScreen(daemon: Daemon, runId: String, onBack: () -> Unit) {
 
         val status = r.optString("status")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (status == "running") ControlButton("Pause", Muted, busy) { act { daemon.action(runId, "pause") } }
+            if (status == "running") ControlButton("Pause", Muted, busy) { act { transport.post("/api/runs/$runId/pause", null) } }
             if (status == "paused" || status == "waiting_timer" || status == "interrupted")
-                ControlButton("Resume now", Clay, busy) { act { daemon.action(runId, "resume") } }
+                ControlButton("Resume now", Clay, busy) { act { transport.post("/api/runs/$runId/resume", null) } }
             if (status !in listOf("completed", "failed", "canceled"))
-                ControlButton("Cancel", Brick, busy) { act { daemon.action(runId, "cancel") } }
+                ControlButton("Cancel", Brick, busy) { act { transport.post("/api/runs/$runId/cancel", null) } }
         }
         Spacer(Modifier.height(12.dp))
 
@@ -326,13 +403,15 @@ fun RunDetailScreen(daemon: Daemon, runId: String, onBack: () -> Unit) {
                         if (id == gate && st == "waiting") {
                             Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(
-                                    onClick = { act { daemon.approve(runId, id, true) } },
+                                    onClick = { act { transport.post("/api/runs/$runId/approve",
+                                        JSONObject().put("nodeId", id).put("approved", true)) } },
                                     colors = ButtonDefaults.buttonColors(containerColor = Clay),
                                     shape = RoundedCornerShape(10.dp), enabled = !busy,
                                     modifier = Modifier.weight(1f).height(46.dp),
                                 ) { Text("Approve") }
                                 OutlinedButton(
-                                    onClick = { act { daemon.approve(runId, id, false) } },
+                                    onClick = { act { transport.post("/api/runs/$runId/approve",
+                                        JSONObject().put("nodeId", id).put("approved", false)) } },
                                     shape = RoundedCornerShape(10.dp), enabled = !busy,
                                     modifier = Modifier.weight(1f).height(46.dp),
                                 ) { Text("Reject", color = Brick) }

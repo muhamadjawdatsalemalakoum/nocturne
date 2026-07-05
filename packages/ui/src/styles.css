@@ -1330,6 +1330,72 @@ button {
   border-radius: var(--r-chip);
   padding: 6px 9px;
 }
+.pair-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 10px 0 12px;
+  padding: 3px;
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-chip);
+}
+.pair-tab {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 10px;
+  border-radius: calc(var(--r-chip) - 3px);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.pair-tab.on {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .18);
+}
+
+/* the Anywhere connection badge (remote console only) */
+.anywhere-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 5px 6px 5px 11px;
+  white-space: nowrap;
+}
+.anywhere-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.anywhere-pill.tier-p2p .anywhere-dot { background: #57a865; box-shadow: 0 0 6px rgba(87, 168, 101, .55); }
+.anywhere-pill.tier-relay .anywhere-dot { background: var(--accent); box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 55%, transparent); }
+.anywhere-pill.tier-connecting .anywhere-dot { animation: anywhere-breathe 1.2s ease-in-out infinite; }
+@keyframes anywhere-breathe {
+  0%, 100% { opacity: .35; }
+  50% { opacity: 1; }
+}
+.anywhere-forget {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.anywhere-forget:hover { background: var(--surface); color: var(--text); }
 
 /* ---------- retrace (suggested workflows) ---------- */
 .modal.wide {

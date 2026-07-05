@@ -21,6 +21,12 @@ export function sanitizeConfig(input: Partial<EngineConfig>): EngineConfig {
     oauthToken: str(input.oauthToken),
     lan: input.lan === true,
     pairingToken: str(input.pairingToken),
+    remote: input.remote === true,
+    remoteSecret: str(input.remoteSecret),
+    remoteRelays:
+      Array.isArray(input.remoteRelays) && input.remoteRelays.every((r) => typeof r === "string" && r.startsWith("wss://"))
+        ? input.remoteRelays
+        : undefined,
   };
 }
 

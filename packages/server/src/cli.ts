@@ -11,8 +11,14 @@ import {
   saveConfig,
   nocturneHome,
 } from "@nocturne/engine";
+import os from "node:os";
+import { DEFAULT_RELAYS, consoleUrl, randomSecret, toB64Url, type PairingPayload } from "@nocturne/remote";
 import { WorkflowStore } from "./workflowStore.js";
 import { Broadcaster, startServer } from "./server.js";
+import { RemoteBridge } from "./remote.js";
+
+/** Where the phone console lives: a static page on the project site (secret rides the URL fragment). */
+const CONSOLE_URL = process.env["NOCTURNE_CONSOLE_URL"] ?? "https://muhamadjawdatsalemalakoum.github.io/nocturne/app";
 
 const VERSION = "0.1.0";
 
@@ -41,17 +47,34 @@ async function main(): Promise<void> {
     await saveConfig(config, home).catch(() => {});
   }
 
+  // --remote (or config.remote): Nocturne Anywhere. Mints a persistent 32-byte
+  // pairing secret; the daemon dials out to public relays and serves an
+  // E2E-encrypted tunnel — no open ports, no accounts, no hosted servers.
+  const remote = process.argv.includes("--remote") || config.remote === true;
+  if (remote && !config.remoteSecret) {
+    config.remoteSecret = toB64Url(randomSecret());
+    config.remote = true;
+    await saveConfig(config, home).catch(() => {});
+  }
+  const remoteRelays = config.remoteRelays ?? DEFAULT_RELAYS;
+  const remotePayload: PairingPayload | null =
+    remote && config.remoteSecret ? { v: 1, s: config.remoteSecret, r: remoteRelays, n: os.hostname() } : null;
+
   const runStore = new RunStore(home);
   await runStore.init();
   const workflowStore = new WorkflowStore(home);
   await workflowStore.init();
   const broadcaster = new Broadcaster();
 
+  let bridge: RemoteBridge | null = null; // started after the server is up; events flow to it too
   const engine = new Engine({
     store: runStore,
     config,
     runner: new CliClaudeRunner(config.claudePath, { oauthToken: config.oauthToken }),
-    onEvent: (ev) => broadcaster.broadcast(ev),
+    onEvent: (ev) => {
+      broadcaster.broadcast(ev);
+      bridge?.onEvent(ev);
+    },
   });
 
   // Retrace: reads the user's local Claude Code transcripts and drafts workflows
@@ -76,14 +99,32 @@ async function main(): Promise<void> {
     {
       engine, workflowStore, runStore, broadcaster, suggester, version: VERSION, staticDir,
       ...(lan && config.pairingToken ? { pairingToken: config.pairingToken, advertisePort: port } : {}),
+      ...(remotePayload ? { remotePair: { url: consoleUrl(CONSOLE_URL, remotePayload), name: remotePayload.n } } : {}),
     },
     port,
     lan ? "0.0.0.0" : "127.0.0.1",
   );
 
+  // Nocturne Anywhere: dial out to the rendezvous relays and serve the tunnel.
+  // Best-effort by design — a relay outage must never stop the daemon.
+  if (remotePayload && config.remoteSecret) {
+    try {
+      bridge = await RemoteBridge.start({
+        secret: config.remoteSecret,
+        port: server.port,
+        relays: remoteRelays,
+        name: remotePayload.n,
+        version: VERSION,
+      });
+    } catch (e) {
+      console.error("  (Anywhere bridge failed to start:", e instanceof Error ? e.message : e, ")");
+    }
+  }
+
   console.log(`\n  Nocturne daemon running`);
   console.log(`  → http://localhost:${server.port}`);
   if (lan) console.log(`  LAN pairing on — open the canvas and tap "Pair device" for the QR`);
+  if (bridge) console.log(`  Anywhere on — pair from anywhere via the QR in "Pair device" (E2E-encrypted P2P)`);
   console.log(`  state: ${home}`);
   if (!staticDir) console.log(`  (UI not built yet — run: npm run build:ui)`);
   console.log("");
@@ -94,6 +135,7 @@ async function main(): Promise<void> {
     if (shuttingDown) return;
     shuttingDown = true;
     console.log(`\n  ${sig} — shutting down…`);
+    bridge?.close();
     await server.close().catch(() => {});
     process.exit(0);
   };

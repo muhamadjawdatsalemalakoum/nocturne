@@ -1,4 +1,12 @@
 import type { Workflow, RunState, WorkflowSummary, RunEvent } from "./types";
+import { initRemote, remoteActive, remoteFetch, remoteEvents } from "./remote";
+
+/**
+ * Nocturne Anywhere: when the page carries (or remembers) an internet pairing
+ * payload, every request and the event stream reroute through the E2E-encrypted
+ * tunnel instead of hitting a local daemon. Decided once, at load.
+ */
+const REMOTE = initRemote();
 
 /**
  * LAN pairing token. A phone opens the QR URL (…/?token=xyz) once; we stash the
@@ -26,6 +34,7 @@ export function pairToken(): string | null {
 })();
 
 const _fetch: typeof fetch = (input, init = {}) => {
+  if (REMOTE && remoteActive()) return remoteFetch(input, init);
   const t = pairToken();
   if (!t) return fetch(input, init);
   const headers = new Headers(init.headers);
@@ -99,6 +108,8 @@ export interface PairInfo {
   token?: string;
   port?: number;
   addresses?: string[];
+  /** Nocturne Anywhere invitation (present when the daemon runs with --remote). */
+  remote?: { url: string; name: string };
 }
 
 export interface SuggestionItem {
@@ -131,6 +142,7 @@ export interface ValidationResult {
 
 /** Connect to the daemon's live event stream; returns a disconnect fn. */
 export function connectEvents(onEvent: (ev: RunEvent) => void): () => void {
+  if (REMOTE && remoteActive()) return remoteEvents(onEvent);
   let ws: WebSocket | null = null;
   let closed = false;
   let retry: ReturnType<typeof setTimeout> | undefined;

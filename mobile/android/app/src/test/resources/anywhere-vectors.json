@@ -1,0 +1,37 @@
+{
+  "comment": "Nocturne Anywhere wire-crypto vectors. Kotlin/TS must agree on every byte.",
+  "secretB64Url": "AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dw",
+  "topicHex": "9c25619faba9781d03536c49d06c0284",
+  "hkdf": {
+    "info_c2d": "nocturne/tunnel/v1/c2d",
+    "info_d2c": "nocturne/tunnel/v1/d2c",
+    "c2dKeyHex": "b5b9e1bdde3d587641db92877c706256ce30f5eb1903e480df1bfc6781fc89ff",
+    "d2cKeyHex": "8e66363f6e7e33ff1f2adaf77815e04050b884d0dfea78fbb8718273e123d16b"
+  },
+  "sealed": [
+    {
+      "dir": "c2d",
+      "ivByte": 1,
+      "plaintextJson": "{\"ts\":1751700000000,\"f\":{\"t\":\"req\",\"id\":\"ab12cd34.1\",\"method\":\"GET\",\"path\":\"/api/health\"}}",
+      "wireB64": "AQEBAQEBAQEBAQEBsOg6j5nPkg2rMPIn26Pa9eBYJ9XZpxPLTv3RL8qXgUp/MLWa3HZ+p15iXpawSLX2s9MB1yHCmgBnGEWjl9OC+7bH97IXpH2JQ/paMtazVm+tfv5xnjTOa2Q0Si26+HRzTyT7x2pn4nzxug=="
+    },
+    {
+      "dir": "d2c",
+      "ivByte": 2,
+      "plaintextJson": "{\"ts\":1751700000456,\"f\":{\"t\":\"res\",\"id\":\"ab12cd34.1\",\"status\":200,\"body\":{\"ok\":true,\"version\":\"0.1.0\"}}}",
+      "wireB64": "AgICAgICAgICAgICkE9/0wYipLzQnYSULRCePic9S/6kcBG/vGw2jSjt6OvPnOlCNoCfwaSYs4zQAYEgcLCbJqaYYPUqNjny41ZY4VsRAjGCGi3XqRp8G1zDW+1txcu7fR3ibYwbvAWbdfWxjyU3og1DnEo5cAyNrVtlR3YFkg8JE2Ej"
+    },
+    {
+      "dir": "d2c",
+      "ivByte": 3,
+      "plaintextJson": "{\"ts\":1751700001000,\"f\":{\"t\":\"ev\",\"items\":[{\"q\":7,\"e\":{\"type\":\"run.status\",\"runId\":\"r1\",\"status\":\"running\",\"at\":1751700000900}}]}}",
+      "wireB64": "AwMDAwMDAwMDAwMDm+ZMKO+pTGfSUGVEqVOlfC/RDR/8bCJ+HQbxjoPXDHVOB2BLF+a8ruHCJHaVKZTZ52DNoTal4mjHmFsXVVw8j0GQVB92V+vOzN31fw6ao7/iNHyRroXTZXueIesLYHU9QSma8d+4vXdrYvcpZ+Q0/AYJxV2ADsAidbqQeOkzYD0xIbHDuLpuYQAdtm293u1hm/0="
+    }
+  ],
+  "nostr": {
+    "kind": 24199,
+    "topicTag": "x",
+    "note": "events: kind 24199, tags [[\"x\", topicHex]], content = wireB64; signed with an ephemeral per-session schnorr key (BIP-340), REQ filter {kinds:[24199], #x:[topicHex], since: now-60}"
+  },
+  "pairingPayloadExample": "eyJ2IjoxLCJzIjoiQXdvUkdCOG1MVFE3UWtsUVYxNWxiSE42Z1lpUGxwMmtxN0s1d01mTzFkdyIsInIiOlsid3NzOi8vcmVsYXkuZGFtdXMuaW8iLCJ3c3M6Ly9ub3MubG9sIl0sIm4iOiJWRUNUT1ItUEMifQ"
+}

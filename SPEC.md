@@ -28,7 +28,7 @@ marketplace/gallery hosting, non-Claude agents.
 
 ## 2. System overview
 
-Three packages in one npm-workspaces monorepo, plus an e2e suite:
+The npm-workspaces monorepo, plus an e2e suite:
 
 ```
 packages/core     Pure TS. Workflow schema (zod), validation, import/export,
@@ -37,7 +37,13 @@ packages/engine   The daemon: run executor, checkpoint store, wait scheduler,
                   limit oracle, claude CLI adapter, REST + WebSocket server,
                   CLI entry (`nocturne`). Serves the built UI.
 packages/ui       The canvas: Vite + React + @xyflow/react. Infinite Figma-style
-                  canvas, inspector, run visualization, import/export UX.
+                  canvas, inspector, run visualization, import/export UX. Also
+                  builds the static phone console (docs/app, `build:remote`).
+packages/remote   Nocturne Anywhere: the isomorphic tunnel protocol — sealed
+                  AES-GCM frames, Nostr relay bus, req/res + event batching,
+                  WebRTC upgrade seam. Runs in the daemon, the browser console,
+                  and (as a byte-exact Kotlin port) the Android app.
+packages/mcp      The MCP server: a thin stdio adapter over the daemon's REST API.
 e2e/              Playwright tests driving daemon + UI + fake-claude together.
 ```
 
@@ -325,6 +331,50 @@ returns `{token, port, addresses}`; the canvas renders it as a QR. The web UI sh
 (manifest + maskable icons) with a phone-first responsive layout. Clean-room design inspired by
 PairDrop's pairing UX; no code reuse.
 
+**Nocturne Anywhere (internet pairing, `packages/remote`).** `nocturne serve --remote` makes the
+daemon reachable from any network with **zero hosted infrastructure, no accounts, and no open
+inbound ports** — the daemon only dials out. Three transport tiers, best available wins, one wire
+protocol:
+
+1. *LAN direct* — the `--lan` path above, untouched.
+2. *Direct P2P* — a WebRTC DataChannel (phone: browser `RTCPeerConnection`; daemon:
+   `node-datachannel`, an optional dependency), negotiated over tier 3 and used the moment ICE
+   completes. Full-fidelity event streaming.
+3. *Encrypted relay floor* — sealed frames as **ephemeral Nostr events** (kind 24199, in the
+   20000–29999 range relays don't store) through 4–5 independent public relays, the same commons
+   NIP-46 remote signers use. Both ends dial out over WSS 443, so this tier works from
+   CGNAT/LTE by construction.
+
+*Crypto.* The QR/console URL carries `#pair=<base64url {v,s,r,n}>` — a **32-byte secret in the
+URL fragment** (never sent to any server; the console scrubs it from the address bar and stores
+it locally). Keys: HKDF-SHA256(secret) with direction-separated infos (`…/c2d`, `…/d2c`) →
+AES-256-GCM, 12-byte IV, wire form `base64(iv‖ct+tag)`. The rendezvous topic is
+`SHA-256(secret‖"nocturne/topic/v1")[:32]` — derivable only from the secret, reveals nothing.
+Relay-tier replay is rejected by event-id dedupe + a ±90 s timestamp window; reflection is
+impossible by key separation. Relays and any MITM see traffic shape only — a wrong-secret client
+gets silence, not errors. Cross-platform vectors
+(`mobile/android/app/src/test/resources/anywhere-vectors.json`) are asserted byte-for-byte by
+both the TS suite and the Android unit tests.
+
+*Protocol.* Sealed envelopes `{ts, f}` where `f` is one of: `hello/welcome` (session handshake,
+re-sent every 3 s until answered), `req/res` (the entire REST API §7 tunneled verbatim; the
+daemon replays each request against its own loopback listener, so the tunnel inherits the local
+trust boundary — no second permission model), `ev` (batched run events with monotonic seqs so a
+client hearing both tiers never double-applies), `webrtc` (offer/answer/candidate for the tier-2
+upgrade), `ping/pong`, and `part` (transparent split/reassembly for frames beyond relay size
+caps; 32 KB plaintext per relay event, 48 KB per DC message).
+
+*Relay etiquette.* The relay tier batches events at 400 ms and coalesces `step.activity` to the
+latest line per step — a polite guest on public infrastructure; the DataChannel tier streams
+everything at 50 ms batches. Relay URLs are user-overridable (`remoteRelays` in config).
+
+*Threat model, stated honestly.* Relays learn IPs, timing, and the (unlinkable) topic hash —
+metadata, never content. Whoever holds the QR payload holds the daemon: the Pair dialog says
+"treat it like a house key". Some NAT pairs will never get a direct channel without a
+user-supplied TURN server; the relay floor keeps them fully functional at control-plane rates.
+The phone console is a static page (GitHub Pages, `docs/app/` — built by `npm run
+build:console`); its only credential is the fragment payload.
+
 ## 8. Retrace — drafting workflows from your history
 
 **Goal.** Lower the blank-canvas barrier: instead of designing a workflow from scratch, let
@@ -481,6 +531,14 @@ Layers, all runnable via `npm test` at root:
    SIGKILLs the daemon mid-step and verifies auto-resume after restart, waits out a real-clock
    limit reset, cancels a hanging child (tree-kill), drives Retrace, and completes a run through
    the bundled stdio MCP server. Exits non-zero on any failure.
+8. **Anywhere live proof (`npm run e2e:anywhere`):** boots the real daemon bin with
+   `--remote`, serves the real console build (`docs/app/`), opens it in a real Chromium, and
+   pairs the two **through the real public relays on the real internet** — then drives the
+   full remote journey over the tunnel: import → run → live output → approval gate approved
+   from the console → completed, plus the WebRTC upgrade to a direct DataChannel. Also:
+   `packages/remote` unit tests (crypto directions/tamper/replay, chunking, coalescing,
+   wrong-secret silence, upgrade dance over a mock relay) and shared cross-platform vectors
+   asserted by both the TS and Android test suites. Needs internet; not for CI.
 
 ## 12. Milestones
 
@@ -490,8 +548,9 @@ Layers, all runnable via `npm test` at root:
 - **M1.1:** Windows wake helper (`install-wake`), `UsageApiOracle`, light theme audit,
   publish `nocturne` + `@nocturne/mcp` to npm, a co-hosted `/mcp` HTTP endpoint,
   README + demo GIF, community-workflows folder.
-- **M2:** conditional nodes (LLM-judged with explicit rubric), per-run cost budgets,
-  workflow gallery site, macOS/Linux wake helpers.
+- **M2:** ~~conditional nodes~~ (shipped in v1 as deterministic if/else — see §3; kept out of
+  the LLM's hands on purpose), per-run cost budgets, workflow gallery site, macOS/Linux wake
+  helpers, iOS companion.
 
 ## 13. Open items
 

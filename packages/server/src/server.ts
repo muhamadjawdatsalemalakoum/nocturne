@@ -101,6 +101,8 @@ export interface ServerDeps {
   pairingToken?: string;
   /** the port the daemon listens on (advertised by /api/pair). */
   advertisePort?: number;
+  /** Nocturne Anywhere pairing invitation (set when the daemon runs with --remote). */
+  remotePair?: { url: string; name: string };
   version?: string;
   /** directory of the built UI to serve at / (optional). */
   staticDir?: string;
@@ -182,11 +184,14 @@ export function buildApp(deps: ServerDeps): Express {
   // a phone can't mint its own invitation.
   app.get("/api/pair", wrap(async (req, res) => {
     if (!isLoopback(req.socket.remoteAddress)) throw new HttpError(403, "pairing info is localhost-only");
-    if (!deps.pairingToken) {
-      res.json({ lan: false });
-      return;
-    }
-    res.json({ lan: true, token: deps.pairingToken, port: deps.advertisePort ?? 5151, addresses: lanAddresses() });
+    res.json({
+      lan: Boolean(deps.pairingToken),
+      ...(deps.pairingToken
+        ? { token: deps.pairingToken, port: deps.advertisePort ?? 5151, addresses: lanAddresses() }
+        : {}),
+      // Nocturne Anywhere: the internet pairing invitation (E2E tunnel via public relays)
+      ...(deps.remotePair ? { remote: deps.remotePair } : {}),
+    });
   }));
 
   // ---- workflow library ----

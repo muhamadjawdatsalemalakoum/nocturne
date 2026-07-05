@@ -8,7 +8,8 @@
     "packages/engine",
     "packages/server",
     "packages/ui",
-    "packages/mcp"
+    "packages/mcp",
+    "packages/remote"
   ],
   "scripts": {
     "test": "vitest run",
@@ -17,7 +18,9 @@
     "build:ui": "npm --workspace @nocturne/ui run build",
     "build:mcp": "node scripts/build-mcp-bundle.mjs",
     "serve": "tsx packages/server/src/cli.ts",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "build:console": "npm --workspace @nocturne/ui run build:remote",
+    "e2e:anywhere": "node scripts/anywhere-e2e.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",

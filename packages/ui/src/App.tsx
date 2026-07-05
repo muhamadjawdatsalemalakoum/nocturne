@@ -5,6 +5,7 @@ import { exportWorkflow, importWorkflow, newWorkflow, type Workflow } from "@noc
 import { useStore, undo, redo } from "./store";
 import QRCode from "qrcode";
 import { api, connectEvents, type ImportSummary, type SuggestResult, type SuggestionItem, type PairInfo } from "./api";
+import { remoteActive, remoteDaemonName, onRemoteStatus, forgetRemote, type RemoteStatus } from "./remote";
 import { nodeTypes } from "./nodes";
 import { MoonMark, Moon } from "./moon";
 import { Inspector } from "./Inspector";
@@ -32,6 +33,40 @@ const TPL_ICON: Record<Template["icon"], JSX.Element> = {
   beaker: <IconBeaker />,
 };
 
+/**
+ * The Anywhere connection badge: only rendered when this page is a paired
+ * remote console. Shows which tier is carrying the session — direct
+ * peer-to-peer or the encrypted relay floor — and offers the way out.
+ */
+function AnywherePill() {
+  const [status, setStatus] = useState<RemoteStatus>({ tier: "connecting", relaysLive: 0 });
+  useEffect(() => (remoteActive() ? onRemoteStatus(setStatus) : undefined), []);
+  if (!remoteActive()) return null;
+  const label =
+    status.tier === "p2p" ? "direct P2P" : status.tier === "relay" ? "encrypted relay" : "connecting…";
+  const title =
+    status.tier === "p2p"
+      ? "Connected straight to your machine — no relay in the path."
+      : status.tier === "relay"
+        ? `End-to-end encrypted via ${status.relaysLive} public relay${status.relaysLive === 1 ? "" : "s"} — nobody but you can read it.`
+        : "Reaching your machine through the rendezvous relays…";
+  return (
+    <span className={`anywhere-pill tier-${status.tier}`} title={title} data-testid="anywhere-pill">
+      <span className="anywhere-dot" aria-hidden="true" />
+      {remoteDaemonName()} · {label}
+      <button
+        className="anywhere-forget"
+        title="Forget this pairing (scan the QR again to reconnect)"
+        onClick={() => {
+          if (confirm("Forget this pairing? You'll need to scan the QR again.")) forgetRemote();
+        }}
+      >
+        ✕
+      </button>
+    </span>
+  );
+}
+
 export function App() {
   const nodes = useStore((s) => s.nodes);
   const edges = useStore((s) => s.edges);
@@ -50,7 +85,8 @@ export function App() {
   const [runModal, setRunModal] = useState(false);
   const [review, setReview] = useState<{ summary: ImportSummary; workflow: Workflow } | null>(null);
   const [retrace, setRetrace] = useState<{ loading: boolean; result?: SuggestResult; error?: string } | null>(null);
-  const [pairing, setPairing] = useState<{ info: PairInfo; qr?: string; url?: string } | null>(null);
+  const [pairing, setPairing] = useState<{ info: PairInfo; qr?: string; url?: string; remoteQr?: string } | null>(null);
+  const [pairTab, setPairTab] = useState<"anywhere" | "wifi">("anywhere");
   // remember the last project directory — retyping an absolute path every run is friction
   const [projectRoot, setProjectRootRaw] = useState(() => localStorage.getItem("nocturne.projectRoot") ?? "");
   const setProjectRoot = useCallback((v: string) => {
@@ -162,13 +198,17 @@ export function App() {
   const openPairing = useCallback(async () => {
     try {
       const info = await api.pair();
-      if (!info.lan || !info.token || !info.addresses?.length) {
-        setPairing({ info });
-        return;
+      const qrOpts = { width: 480, margin: 1, color: { dark: "#1f1e1d", light: "#ffffff" } };
+      let qr: string | undefined;
+      let url: string | undefined;
+      if (info.lan && info.token && info.addresses?.length) {
+        url = `http://${info.addresses[0]}:${info.port}/?token=${encodeURIComponent(info.token)}`;
+        qr = await QRCode.toDataURL(url, qrOpts);
       }
-      const url = `http://${info.addresses[0]}:${info.port}/?token=${encodeURIComponent(info.token)}`;
-      const qr = await QRCode.toDataURL(url, { width: 480, margin: 1, color: { dark: "#1f1e1d", light: "#ffffff" } });
-      setPairing({ info, qr, url });
+      // Nocturne Anywhere: same scan, works from any network — E2E-encrypted P2P
+      const remoteQr = info.remote ? await QRCode.toDataURL(info.remote.url, qrOpts) : undefined;
+      setPairTab(remoteQr ? "anywhere" : "wifi");
+      setPairing({ info, qr, url, remoteQr });
     } catch (e) {
       setToast(`Pairing unavailable: ${(e as Error).message}`);
     }
@@ -308,6 +348,7 @@ export function App() {
         </div>
         <input className="wf-name" data-testid="wf-name" value={meta.name} onChange={(e) => setMeta({ name: e.target.value })} spellCheck={false} />
         <div className="spacer" />
+        <AnywherePill />
         {run && <span className="cost-pill" data-testid="top-cost">${(run.totalCostUsd ?? 0).toFixed(3)}</span>}
         <button className="btn ghost icon" title="Undo" onClick={() => undo()}><IconUndo /></button>
         <button className="btn ghost icon" title="Redo" onClick={() => redo()}><IconRedo /></button>
@@ -543,7 +584,47 @@ export function App() {
         <div className="overlay" onClick={() => setPairing(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} data-testid="pair-modal">
             <h2>Pair a device</h2>
-            {pairing.qr ? (
+            {(pairing.qr || pairing.remoteQr) && (
+              <div className="pair-tabs" role="tablist">
+                {pairing.remoteQr && (
+                  <button
+                    role="tab"
+                    aria-selected={pairTab === "anywhere"}
+                    className={`pair-tab ${pairTab === "anywhere" ? "on" : ""}`}
+                    onClick={() => setPairTab("anywhere")}
+                  >
+                    Anywhere
+                  </button>
+                )}
+                {pairing.qr && (
+                  <button
+                    role="tab"
+                    aria-selected={pairTab === "wifi"}
+                    className={`pair-tab ${pairTab === "wifi" ? "on" : ""}`}
+                    onClick={() => setPairTab("wifi")}
+                  >
+                    This Wi-Fi
+                  </button>
+                )}
+              </div>
+            )}
+            {pairTab === "anywhere" && pairing.remoteQr ? (
+              <>
+                <div className="sub">
+                  Scan from <strong>any network</strong> — home, coffee shop, or LTE. Your phone and
+                  this machine find each other through public rendezvous relays and connect
+                  <strong> peer-to-peer</strong> when the networks allow, end-to-end encrypted
+                  always. No account, no server of ours, nothing anyone else can read.
+                </div>
+                <div className="qr-wrap">
+                  <img className="qr" src={pairing.remoteQr} alt="Anywhere pairing QR code" />
+                </div>
+                <div className="hint" style={{ marginTop: 8 }}>
+                  The key travels only inside this QR. Anyone who scans it can control this daemon —
+                  treat it like a house key.
+                </div>
+              </>
+            ) : pairTab === "wifi" && pairing.qr ? (
               <>
                 <div className="sub">
                   Scan with your phone or tablet on the <strong>same Wi-Fi</strong>. It connects
@@ -560,10 +641,12 @@ export function App() {
               </>
             ) : (
               <>
-                <div className="sub">LAN access is off, so phones can’t reach the daemon yet.</div>
+                <div className="sub">Device pairing is off, so phones can’t reach the daemon yet.</div>
                 <div className="hint">
-                  Restart it with <code>nocturne serve --lan</code> — a one-time pairing token is
-                  minted and this dialog will show the QR to scan. Localhost needs no token.
+                  Restart with <code>nocturne serve --lan</code> for same-Wi-Fi pairing, or{" "}
+                  <code>nocturne serve --remote</code> for <strong>Nocturne Anywhere</strong> —
+                  pair once, monitor and control from any network, end-to-end encrypted and
+                  peer-to-peer when networks allow. Both together work too.
                 </div>
               </>
             )}
