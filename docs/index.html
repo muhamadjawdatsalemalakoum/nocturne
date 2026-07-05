@@ -166,7 +166,11 @@
   }
   .cursor { position:fixed; top:0; left:0; z-index:9999; pointer-events:none; display:grid; place-items:center; width:0; height:0; opacity:0; transition:opacity .25s ease; will-change:transform; }
   html.cursor-active .cursor { opacity:1; }
-  .cursor > i { display:block; border-radius:50%; }
+  /* center each glyph on the pointer origin; translate(-50%,-50%) is size-agnostic,
+     so the ring stays concentric with the dot through its hover grow (24→46px).
+     (A 0×0 grid can't center these — its auto track grows to the child and anchors
+     it top-left, which drifted the dot into the ring's top-left corner.) */
+  .cursor > i { display:block; border-radius:50%; transform:translate(-50%,-50%); }
   /* the moon: an empty ring that fills to a soft clay disc over anything interactive */
   .cursor-ring > i {
     width:24px; height:24px; border:1.5px solid var(--accent); background:transparent;
