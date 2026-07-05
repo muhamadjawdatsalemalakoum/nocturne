@@ -503,11 +503,16 @@ button {
   gap: 7px;
 }
 .node .prompt-preview {
-  padding: 0 12px 11px;
+  /* margin, not padding: -webkit-line-clamp clips at the content edge, so bottom
+     PADDING gives a third line room to bleed in before overflow:hidden cuts it.
+     Margin keeps the spacing outside the clip box (same as .readout below). */
+  margin: 0 12px 11px;
   font-size: 11.5px;
+  line-height: 1.5;
   color: var(--muted);
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
