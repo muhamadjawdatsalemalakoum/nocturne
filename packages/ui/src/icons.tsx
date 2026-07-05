@@ -43,13 +43,15 @@ export const IconApproval = svg(
 );
 
 // start — a waxing arc, the night's work beginning
-export const IconStart = svg(<path d="M9 4 a8 8 0 0 1 0 16 a5.5 5.5 0 0 0 0 -16 Z" fill="currentColor" stroke="none" />);
+// (inner arc radius must exceed half the 16px chord — a smaller radius gets
+// auto-corrected up to the outer arc's, the two coincide, and the fill vanishes)
+export const IconStart = svg(<path d="M9 4 a8 8 0 0 1 0 16 a10 10 0 0 0 0 -16 Z" fill="currentColor" stroke="none" />);
 
 // end — a terminus mark: a filled square set on the meridian
 export const IconEnd = svg(<rect x="7" y="7" width="10" height="10" fill="currentColor" stroke="none" />);
 
-// run — begin: a waxing moon
-export const IconRun = svg(<path d="M9 4 a8 8 0 0 1 0 16 a5.5 5.5 0 0 0 0 -16 Z" fill="currentColor" stroke="none" />);
+// run — begin: a waxing moon (same corrected crescent geometry as IconStart)
+export const IconRun = svg(<path d="M9 4 a8 8 0 0 1 0 16 a10 10 0 0 0 0 -16 Z" fill="currentColor" stroke="none" />);
 
 // import — a mark crossing below the horizon into the register
 export const IconImport = svg(
