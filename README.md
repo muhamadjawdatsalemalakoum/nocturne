@@ -175,8 +175,11 @@ local connection (fastest); both modes can run at once and the Pair dialog offer
 
 **Native Android app:** a Kotlin/Jetpack-Compose companion lives in [`mobile/`](mobile/) — QR
 pairing (LAN and Anywhere), live run monitoring, and approve/pause/resume/cancel, in full
-Nocturne branding. Every change builds `nocturne-android.apk` in GitHub Actions (the
-*android-apk* workflow → artifact; tagged releases attach it). iOS coming soon.
+Nocturne branding. **[Download the latest APK from Releases →](https://github.com/muhamadjawdatsalemalakoum/nocturne/releases/latest)**
+(or the stable direct link:
+[`nocturne-android.apk`](https://github.com/muhamadjawdatsalemalakoum/nocturne/releases/latest/download/nocturne-android.apk)).
+Every push to `mobile/android/` also builds a fresh CI artifact (the *android-apk* workflow), and
+`release.yml` publishes tagged releases with the APK + checksum attached. iOS coming soon.
 
 Threat model, wire protocol, and message budget are specified in [SPEC.md](SPEC.md) — and the
 whole path is proven by a live end-to-end test (`npm run e2e:anywhere`) that boots the real

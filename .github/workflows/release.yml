@@ -1,0 +1,51 @@
+name: release
+# Publishes a GitHub Release with the Android APK attached, built fresh and
+# gated on the shared wire-protocol vectors. GitHub also attaches the source
+# archives automatically. Notes come from .github/RELEASE_NOTES.md.
+#
+# ONE-TIME SETUP for full automation: set the repo's Actions token to write —
+#   Settings → Actions → General → Workflow permissions → "Read and write" —
+# then uncomment the `push: tags` trigger below so every `git push --tags`
+# publishes a release. Until then, run this manually from the Actions tab
+# ("Run workflow" → enter a tag), or cut a release with `gh release create`.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v0.1.0)"
+        required: true
+  # push:
+  #   tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - name: Unit tests (Anywhere wire-protocol vectors gate the APK)
+        run: gradle -p mobile/android :app:testDebugUnitTest --no-daemon
+      - name: Build Android APK
+        run: gradle -p mobile/android assembleDebug --no-daemon
+      - name: Name the APK + checksum
+        run: |
+          cp mobile/android/app/build/outputs/apk/debug/app-debug.apk nocturne-android.apk
+          sha256sum nocturne-android.apk | tee nocturne-android.apk.sha256
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: Nocturne ${{ github.event.inputs.tag || github.ref_name }}
+          body_path: .github/RELEASE_NOTES.md
+          files: |
+            nocturne-android.apk
+            nocturne-android.apk.sha256
