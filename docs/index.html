@@ -105,15 +105,28 @@
   header.hero .cta { display:flex; gap:12px; justify-content:center; margin-top:30px; flex-wrap:wrap; }
   .hero-shot { max-width:calc(var(--maxw) - 40px); margin:52px auto 0; padding:0 24px 350px; }
   .hero-frame { position:relative; }
-  .hero-shot img.hero-desk { width:100%; height:auto; border-radius:var(--r); border:1px solid rgba(245,244,238,.14); display:block; background:#1d1a17;
+  /* each shot is a pane of glass: it holds the image and clips a slow light glint */
+  .glass { display:block; position:relative; overflow:hidden; }
+  .glass.desk { border-radius:var(--r); border:1px solid rgba(245,244,238,.14); background:#1d1a17;
     box-shadow:0 30px 90px rgba(0,0,0,.55), 0 0 60px color-mix(in srgb, var(--accent) 16%, transparent); }
+  .glass.desk > img { display:block; width:100%; height:auto; border-radius:inherit; }
   /* the mobile companion, glowing over the desktop's corner — both surfaces at once */
-  .hero-shot img.hero-phone { position:absolute; right:-6px; bottom:-44px; width:158px; height:auto; z-index:4;
+  .glass.phone { position:absolute; right:-6px; bottom:-44px; width:158px; z-index:4;
     border-radius:26px; border:5px solid #14110f; background:#14110f;
     box-shadow:0 26px 58px rgba(0,0,0,.6), 0 0 42px color-mix(in srgb, var(--accent) 24%, transparent);
     animation:phoneFloat 6.5s ease-in-out infinite; }
+  .glass.phone > img { display:block; width:100%; height:auto; border-radius:21px; }
   @keyframes phoneFloat { 0%,100% { transform:translateY(0) rotate(0); } 50% { transform:translateY(-9px) rotate(-1deg); } }
-  @media(max-width:640px){ .hero-shot img.hero-phone { width:110px; right:2px; bottom:-24px; border-width:4px; } }
+  @media(max-width:640px){ .glass.phone { width:110px; right:2px; bottom:-24px; border-width:4px; } }
+  /* the shine: a soft band of light glides across each pane, slowly, with long
+     calm pauses between passes — and reaches the phone a beat after the desktop */
+  .glass::after { content:""; position:absolute; top:-60%; left:0; width:42%; height:220%; z-index:5; pointer-events:none;
+    background:linear-gradient(90deg, transparent, rgba(255,251,245,.4), transparent);
+    transform:translateX(-180%) rotate(15deg); }
+  .glass.desk::after  { animation:glassShine 9s ease-in-out infinite; }
+  .glass.phone::after { animation:glassShine 9s ease-in-out infinite 1.15s; }
+  @keyframes glassShine { 0% { transform:translateX(-180%) rotate(15deg); } 26% { transform:translateX(360%) rotate(15deg); } 100% { transform:translateX(360%) rotate(15deg); } }
+  @media (prefers-reduced-motion: reduce){ .glass::after, .glass.phone { animation:none !important; } }
   /* dawn: entirely BELOW the shot. A tall, eased 13-stop ramp — night warming
      through ember to ivory so gradually no seam survives — plus a wide soft
      sun-glow breathing at the horizon line. */
@@ -141,19 +154,19 @@
      ramp, blooms in the warm band, never touches the clean cream edge. */
   .hero-dawnfx { position:absolute; left:0; right:0; bottom:0; height:420px; z-index:3; pointer-events:none; overflow:hidden;
     border-radius:0 0 clamp(30px, 5vw, 68px) clamp(30px, 5vw, 68px); }
-  .hero-dawnfx i { position:absolute; left:50%; bottom:96px; display:block; width:150%; height:280px;
-    border-radius:50%; filter:blur(30px); will-change:transform, opacity; }
-  .hero-dawnfx i.g1 { background:radial-gradient(closest-side, rgba(224,150,110,.8), rgba(224,150,110,0) 74%);
-    animation:dawnBreathe1 13s ease-in-out infinite; }
-  .hero-dawnfx i.g2 { width:118%; height:230px; bottom:120px;
-    background:radial-gradient(closest-side, rgba(217,160,91,.62), rgba(217,160,91,0) 74%);
-    animation:dawnBreathe2 21s ease-in-out infinite; }
+  .hero-dawnfx i { position:absolute; left:50%; bottom:70px; display:block; width:160%; height:360px;
+    border-radius:50%; filter:blur(34px); will-change:transform, opacity; }
+  .hero-dawnfx i.g1 { background:radial-gradient(closest-side, rgba(228,152,112,.95), rgba(228,152,112,0) 76%);
+    animation:dawnBreathe1 9s ease-in-out infinite; }
+  .hero-dawnfx i.g2 { width:128%; height:320px; bottom:96px;
+    background:radial-gradient(closest-side, rgba(219,162,93,.78), rgba(219,162,93,0) 76%);
+    animation:dawnBreathe2 14s ease-in-out infinite; }
   @keyframes dawnBreathe1 {
-    0%,100% { transform:translate(-50%, 40px) scale(1);    opacity:.5; }
-    50%     { transform:translate(-50%, -18px) scale(1.14); opacity:.92; } }
+    0%,100% { transform:translate(-50%, 70px)  scale(1);    opacity:.5; }
+    50%     { transform:translate(-50%, -74px) scale(1.26); opacity:1; } }
   @keyframes dawnBreathe2 {
-    0%,100% { transform:translate(-53%, 60px) scaleX(1);    opacity:.34; }
-    50%     { transform:translate(-47%, -6px) scaleX(1.22); opacity:.7; } }
+    0%,100% { transform:translate(-53%, 92px)  scaleX(1);    opacity:.32; }
+    50%     { transform:translate(-47%, -50px) scaleX(1.34); opacity:.82; } }
   @media (prefers-reduced-motion: reduce){ .hero-dawnfx i { animation:none !important; } }
   /* the occasional meteor — one thin streak, long pauses */
   .hero-sky .hshoot { position:absolute; top:16%; left:-12%; width:150px; height:1.5px; border-radius:2px; opacity:0;
@@ -520,8 +533,8 @@
   </div>
   <div class="hero-shot">
     <div class="hero-frame">
-      <img class="hero-desk" src="images/07-waiting-reset.png" width="1280" height="720" fetchpriority="high" decoding="async" alt="A Nocturne run paused on a usage-limit-reset wait, ready to resume" />
-      <img class="hero-phone" src="images/13-mobile-run.png" width="1170" height="2532" loading="lazy" decoding="async" alt="The same run monitored from the phone — connected peer-to-peer, approve from anywhere" />
+      <span class="glass desk"><img class="hero-desk" src="images/07-waiting-reset.png" width="1280" height="720" fetchpriority="high" decoding="async" alt="A Nocturne run paused on a usage-limit-reset wait, ready to resume" /></span>
+      <span class="glass phone"><img class="hero-phone" src="images/13-mobile-run.png" width="1170" height="2532" loading="lazy" decoding="async" alt="The same run monitored from the phone — connected peer-to-peer, approve from anywhere" /></span>
     </div>
   </div>
 </header>
