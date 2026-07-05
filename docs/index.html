@@ -135,6 +135,26 @@
         rgb(228,196,169)     89%,
         rgb(236,212,188)     94%,
         rgb(243,229,211)    100%); }
+  /* the dawn BREATHES: two soft warm blooms rising and settling at different,
+     unhurried rhythms (13s vs 21s) so the sunrise feels alive and never loops
+     visibly. Transform/opacity only — GPU-composited, buttery. Sits above the
+     ramp, blooms in the warm band, never touches the clean cream edge. */
+  .hero-dawnfx { position:absolute; left:0; right:0; bottom:0; height:420px; z-index:3; pointer-events:none; overflow:hidden;
+    border-radius:0 0 clamp(30px, 5vw, 68px) clamp(30px, 5vw, 68px); }
+  .hero-dawnfx i { position:absolute; left:50%; bottom:96px; display:block; width:150%; height:280px;
+    border-radius:50%; filter:blur(30px); will-change:transform, opacity; }
+  .hero-dawnfx i.g1 { background:radial-gradient(closest-side, rgba(224,150,110,.8), rgba(224,150,110,0) 74%);
+    animation:dawnBreathe1 13s ease-in-out infinite; }
+  .hero-dawnfx i.g2 { width:118%; height:230px; bottom:120px;
+    background:radial-gradient(closest-side, rgba(217,160,91,.62), rgba(217,160,91,0) 74%);
+    animation:dawnBreathe2 21s ease-in-out infinite; }
+  @keyframes dawnBreathe1 {
+    0%,100% { transform:translate(-50%, 40px) scale(1);    opacity:.5; }
+    50%     { transform:translate(-50%, -18px) scale(1.14); opacity:.92; } }
+  @keyframes dawnBreathe2 {
+    0%,100% { transform:translate(-53%, 60px) scaleX(1);    opacity:.34; }
+    50%     { transform:translate(-47%, -6px) scaleX(1.22); opacity:.7; } }
+  @media (prefers-reduced-motion: reduce){ .hero-dawnfx i { animation:none !important; } }
   /* the occasional meteor — one thin streak, long pauses */
   .hero-sky .hshoot { position:absolute; top:16%; left:-12%; width:150px; height:1.5px; border-radius:2px; opacity:0;
     background:linear-gradient(90deg, transparent, rgba(245,244,238,.9)); transform:rotate(9deg);
@@ -1574,6 +1594,12 @@
     sky.innerHTML = moonSvg + stars;
     // after the scene canvas (if present), before the content — stars over orbs
     hero2.insertBefore(sky, hero2.querySelector('.wrap'));
+    // the breathing dawn: two warm blooms rising in the horizon band
+    var dawn = document.createElement('div');
+    dawn.className = 'hero-dawnfx';
+    dawn.setAttribute('aria-hidden', 'true');
+    dawn.innerHTML = '<i class="g1"></i><i class="g2"></i>';
+    hero2.appendChild(dawn);
   }
 
   // QUICK START — the terminal types itself the first time it's seen
