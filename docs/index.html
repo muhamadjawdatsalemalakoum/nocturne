@@ -99,15 +99,29 @@
   header.hero .cta .btn:not(.primary) { border-color:rgba(245,244,238,.22); background:rgba(245,244,238,.06); color:#f5f4ee; }
   header.hero .cta .btn:not(.primary):hover { background:rgba(245,244,238,.12); border-color:rgba(245,244,238,.38); }
   header.hero .cta { display:flex; gap:12px; justify-content:center; margin-top:30px; flex-wrap:wrap; }
-  .hero-shot { max-width:calc(var(--maxw) - 40px); margin:52px auto 0; padding:0 24px 230px; }
+  .hero-shot { max-width:calc(var(--maxw) - 40px); margin:52px auto 0; padding:0 24px 350px; }
   .hero-shot img { width:100%; height:auto; border-radius:var(--r); border:1px solid rgba(245,244,238,.14); display:block; background:#1d1a17;
     box-shadow:0 30px 90px rgba(0,0,0,.55), 0 0 60px color-mix(in srgb, var(--accent) 16%, transparent); }
-  /* dawn: entirely BELOW the shot — night holds the screenshot, then the sky
-     warms through ember to ivory with a sun-glow rising at the horizon line */
-  header.hero::after { content:""; position:absolute; left:0; right:0; bottom:0; height:230px; pointer-events:none; z-index:2;
+  /* dawn: entirely BELOW the shot. A tall, eased 13-stop ramp — night warming
+     through ember to ivory so gradually no seam survives — plus a wide soft
+     sun-glow breathing at the horizon line. */
+  header.hero::after { content:""; position:absolute; left:0; right:0; bottom:0; height:420px; pointer-events:none; z-index:2;
     background:
-      radial-gradient(58% 150px at 50% 102%, color-mix(in srgb, var(--accent) 34%, transparent), transparent 72%),
-      linear-gradient(180deg, rgba(36,27,21,0) 0%, rgba(46,32,23,.55) 34%, color-mix(in srgb, var(--accent) 16%, #4a352a) 58%, color-mix(in srgb, var(--accent) 12%, var(--bg)) 82%, var(--bg) 100%); }
+      radial-gradient(72% 240px at 50% 104%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 74%),
+      linear-gradient(180deg,
+        rgba(20,19,17,0)      0%,
+        rgba(24,20,17,.18)   14%,
+        rgba(30,23,18,.42)   26%,
+        rgba(40,28,20,.62)   36%,
+        rgba(58,38,26,.78)   46%,
+        rgba(82,52,34,.88)   55%,
+        rgba(112,71,47,.93)  63%,
+        rgba(146,95,64,.96)  70%,
+        rgba(182,128,94,.98) 77%,
+        rgba(210,163,130,.99) 83%,
+        rgb(228,196,169)     89%,
+        rgb(240,222,203)     94%,
+        var(--bg)           100%); }
   /* the occasional meteor — one thin streak, long pauses */
   .hero-sky .hshoot { position:absolute; top:16%; left:-12%; width:150px; height:1.5px; border-radius:2px; opacity:0;
     background:linear-gradient(90deg, transparent, rgba(245,244,238,.9)); transform:rotate(9deg);
