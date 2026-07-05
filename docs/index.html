@@ -92,7 +92,9 @@
     border-radius:0 0 clamp(30px, 5vw, 68px) clamp(30px, 5vw, 68px);
     background:
     radial-gradient(1100px 480px at 50% -120px, #262019, transparent 70%),
-    linear-gradient(180deg, #100f0e, #141311 55%, #1a1613 82%, #241b15 100%); }
+    /* base ends on the SAME cream as the dawn overlay: the sub-pixel ring the
+       rounded clip leaves at the arc is then cream-on-cream — invisible */
+    linear-gradient(180deg, #100f0e, #141311 55%, #1a1613 80%, #3a2a1f 90%, rgb(243,229,211) 100%); }
   header.hero h1 { font-size:clamp(38px,6vw,68px); color:#f5f4ee; }
   header.hero .eyebrow { color:#e8b9a5; }
   header.hero .lede { max-width:720px; margin:22px auto 0; font-size:clamp(17px,2.2vw,21px); color:rgba(245,244,238,.72); text-wrap:pretty; }
@@ -108,6 +110,7 @@
      through ember to ivory so gradually no seam survives — plus a wide soft
      sun-glow breathing at the horizon line. */
   header.hero::after { content:""; position:absolute; left:0; right:0; bottom:0; height:420px; pointer-events:none; z-index:2;
+    border-radius:0 0 clamp(30px, 5vw, 68px) clamp(30px, 5vw, 68px);
     background:
       radial-gradient(72% 240px at 50% 104%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 74%),
       linear-gradient(180deg,
