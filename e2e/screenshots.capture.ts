@@ -151,11 +151,25 @@ test("capture all journeys", async ({ page }) => {
   await page.waitForTimeout(400);
   await shot(page, "06-completed.png");
 
-  // 07 — the hero: a run paused on a usage-limit-reset wait, ready to resume
+  // 07 — the hero: a run paused on a usage-limit-reset wait, ready to resume.
+  // Composition matters most here (it's the page-one image): palette scrolled
+  // to its top, canvas panned so no node leaks half-hidden behind the run drawer.
   await page.goto("/");
   await loadTemplate(page, "rate-limit-safe");
   await startRun(page);
   await expect(page.getByTestId("run-status")).toHaveText(/waiting/, { timeout: 40_000 });
+  await page.evaluate(() => {
+    document.querySelectorAll(".panel *").forEach((el) => {
+      if (el.scrollTop) el.scrollTop = 0;
+    });
+  });
+  // one gentle zoom-out so the whole chain sits clear of both panels
+  await page.mouse.move(580, 420);
+  await page.mouse.wheel(0, 240);
+  await page.mouse.move(640, 420);
+  await page.mouse.down();
+  await page.mouse.move(560, 420, { steps: 5 });
+  await page.mouse.up();
   await page.waitForTimeout(400);
   await shot(page, "07-waiting-reset.png");
 
