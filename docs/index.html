@@ -109,8 +109,6 @@
      sun-glow breathing at the horizon line. */
   header.hero::after { content:""; position:absolute; left:0; right:0; bottom:0; height:420px; pointer-events:none; z-index:2;
     background:
-      radial-gradient(340px 190px at 0% 100%, rgba(52,34,24,.6), transparent 72%),
-      radial-gradient(340px 190px at 100% 100%, rgba(52,34,24,.6), transparent 72%),
       radial-gradient(72% 240px at 50% 104%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 74%),
       linear-gradient(180deg,
         rgba(20,19,17,0)      0%,
@@ -124,8 +122,8 @@
         rgba(182,128,94,.98) 77%,
         rgba(210,163,130,.99) 83%,
         rgb(228,196,169)     89%,
-        rgb(240,222,203)     94%,
-        var(--bg)           100%); }
+        rgb(236,212,188)     94%,
+        rgb(243,229,211)    100%); }
   /* the occasional meteor — one thin streak, long pauses */
   .hero-sky .hshoot { position:absolute; top:16%; left:-12%; width:150px; height:1.5px; border-radius:2px; opacity:0;
     background:linear-gradient(90deg, transparent, rgba(245,244,238,.9)); transform:rotate(9deg);
@@ -331,7 +329,9 @@
   /* THE THRESHOLD — a moon-pendant lowered from the night on a canvas wire,
      swinging gently across the boundary; a pulse rides down and lights it.
      (It lives in #why and hangs UP into the hero, so hero overflow can't clip it.) */
-  #why { padding-top:118px; }
+  /* no hairline under the night, and the section opens on the same ivory the
+     corner notches reveal — the morning owns the space the curve gives it */
+  #why { padding-top:118px; border-top:none; background:linear-gradient(180deg, var(--bg), var(--surface-2)); }
   .threshold { position:absolute; top:0; left:50%; transform:translate(-50%,-54%); z-index:2; pointer-events:none; }
   .threshold svg { display:block; overflow:visible; transform-origin:32px 0; animation:thSway 7s ease-in-out infinite; }
   @keyframes thSway { 0%,100% { transform:rotate(-2.2deg); } 50% { transform:rotate(2.2deg); } }
