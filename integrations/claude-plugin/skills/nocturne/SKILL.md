@@ -28,8 +28,10 @@ start it with `nocturne serve` (or `npm run serve` in the repo). Check with `noc
 ## How to use the tools
 
 1. **Launch.** `run_workflow` needs an **absolute `projectRoot`** (the repo the agents work in) and
-   either a saved `workflowId` (see `list_workflows`) or an inline `workflow` object. It returns a
-   `runId` and returns immediately — the run continues unattended.
+   either a saved `workflowId` (see `list_workflows`) or an inline `workflow` object. If the
+   workflow declares params (run inputs — visible via `get_workflow`), pass
+   `params: { name: value }`, asking the user for any required values before launching. It returns
+   a `runId` and returns immediately — the run continues unattended.
 2. **Poll, don't block.** Use `get_run` with the `runId` to see per-step status, streamed output,
    and cost. A run may sit in `waiting_timer` (holding for a usage-limit/timer — it auto-resumes) or
    `waiting_approval` (needs you).

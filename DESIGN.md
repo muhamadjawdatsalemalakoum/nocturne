@@ -41,7 +41,8 @@ Three faces, bundled fully offline via `@fontsource-variable`:
 
 - The canvas fills the viewport (a soft warm dot-grid).
 - A **frosted pill toolbar** floats at the top: moon mark + wordmark + workflow name, then
-  undo/redo, Import/Export/Save, Runs, and the clay **Run** button.
+  undo/redo, Import/Export/Save, Retrace, the phone Pair icon (QR), Runs, and the clay
+  **Run** button; an Anywhere status pill and a live cost pill appear when relevant.
 - **Build** panel (left) and **Properties** panel (right) float over the canvas, each with a
   header and a **minimize/maximize** toggle. The **Run** panel floats bottom-right, collapsible
   and closable.
@@ -59,6 +60,12 @@ Free-text is a last resort. The Properties panel offers, in order of reach:
   no comma-separated typing.
 - **Permission** — a plain-language dropdown ("Deny unlisted tools (safe default)").
 - **Wait** — segmented mode with duration presets (15m / 1h / 4h / 8h) or a clock time.
+- **Steps Library** — a searchable, category-filtered picker of curated step prompts;
+  one tap fills the node instead of writing from scratch.
+- **If/else** — a condition node with ✓/✕ branches, so routing is drawn, not typed.
+- **Run count** — a ×N control repeats a step; no loop wiring.
+- **Run inputs** — the Run modal renders the workflow's params as a form, defaults
+  pre-filled, before anything starts.
 - **Advanced** — cwd, effort, session-continuation, custom tool patterns — tucked behind a
   disclosure so the common case stays clean.
 
@@ -99,10 +106,9 @@ Ornament has to encode something true, or it reads as generated. A few lines hel
 color, not scale. A slow breath marks waiting; a slow clay flow marks the active edge. Everything
 else holds still. `prefers-reduced-motion` drops all ambient motion.
 
-## 7. Implementation
+## 8. Implementation
 
 Tokens: `packages/ui/src/styles.css` (`:root`). Fonts import in `main.tsx`. Moon primitive
 `moon.tsx`; icons `icons.tsx`; templates & presets `templates.ts`; nodes `nodes.tsx`;
 layout `App.tsx`; options-first properties `Inspector.tsx`. Plain CSS variables + React —
 no framework — for full control and a self-contained, offline bundle.
-```

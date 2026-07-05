@@ -23,8 +23,8 @@ Unattended subscription execution is impossible without an engine that checkpoin
 the 5-hour window reset, and resumes exactly where it stopped. That engine is the product;
 the canvas is the on-ramp; the portable workflow file is the network effect.
 
-Non-goals (v1): cloud execution, API-key metering, conditional/LLM-judged branch nodes,
-marketplace/gallery hosting, non-Claude agents.
+Non-goals (v1): cloud execution, API-key metering, LLM-judged branch nodes (deterministic
+if/else conditions are in — see §3), marketplace/gallery hosting, non-Claude agents.
 
 ## 2. System overview
 
@@ -33,9 +33,10 @@ The npm-workspaces monorepo, plus an e2e suite:
 ```
 packages/core     Pure TS. Workflow schema (zod), validation, import/export,
                   template engine, DAG utilities. Zero runtime deps beyond zod.
-packages/engine   The daemon: run executor, checkpoint store, wait scheduler,
-                  limit oracle, claude CLI adapter, REST + WebSocket server,
-                  CLI entry (`nocturne`). Serves the built UI.
+packages/engine   The daemon core: run executor, checkpoint store, wait scheduler,
+                  limit oracle, claude CLI adapter, Retrace pipeline.
+packages/server   REST + WebSocket server, workflow library store, LAN/Anywhere
+                  pairing glue, CLI entry (`nocturne serve`). Serves the built UI.
 packages/ui       The canvas: Vite + React + @xyflow/react. Infinite Figma-style
                   canvas, inspector, run visualization, import/export UX. Also
                   builds the static phone console (docs/app, `build:remote`).
@@ -145,7 +146,7 @@ queued → running → completed
 interrupted (daemon died mid-run; set on startup scan) → auto-resume if configured
 ```
 
-Step statuses: `pending | eligible | running | succeeded | failed | skipped | waiting`.
+Step statuses: `pending | running | succeeded | failed | skipped | waiting`.
 
 Every transition appends to `events.ndjson` and atomically rewrites `state.json`
 (write tmp file → rename). A crash at any instant loses at most the in-flight step,
@@ -170,11 +171,13 @@ claude -p "<composed prompt>"
   auth entirely, which would break subscription execution.
 - **Sanitized child environment** — verified empirically (2026-07-02): a poisoned
   `ANTHROPIC_BASE_URL` from a parent process causes 401s. The adapter strips:
-  `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `BAGGAGE`,
-  `AI_AGENT`, and all `CLAUDECODE*` / `CLAUDE_CODE_*` / `CLAUDE_*` session vars,
-  then injects `CLAUDE_CODE_OAUTH_TOKEN` iff the user configured one (see §5 auth).
+  `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`,
+  `ANTHROPIC_CUSTOM_HEADERS`, proxy vars (`http_proxy`, `https_proxy`, `all_proxy`,
+  `no_proxy`), `BAGGAGE`, `AI_AGENT`, and all `CLAUDECODE*` / `CLAUDE_CODE_*` vars —
+  deliberately keeping `CLAUDE_CONFIG_DIR` so the child finds credentials — then
+  injects `CLAUDE_CODE_OAUTH_TOKEN` iff the user configured one (see §5 auth).
 - Spawn via `cross-spawn` (Windows `.cmd` shim safety), `cwd` = projectRoot + node.cwd,
-  `windowsHide`, stdout/stderr captured with a size cap (2 MB) and a step timeout
+  `windowsHide`, stdout/stderr captured with a size cap (4 MB) and a step timeout
   (default 30 min, per-node override).
 - The JSON result (`result`, `session_id`, `total_cost_usd`, `usage`, `is_error`,
   `api_error_status`) is persisted verbatim to `steps/<nodeId>.json`.
@@ -230,7 +233,7 @@ unmet gap this product fills.
 
 ### Wait scheduler
 
-- All waits are persisted as `wakeAt` (ISO) in `state.json` — never in-memory-only.
+- All waits are persisted as `wakeAt` (epoch ms) in `state.json` — never in-memory-only.
 - Injectable clock (`now()`, `setTimer()`) so unit tests use fake time.
 - **Catch-up semantics:** on daemon start (or machine wake), any `wakeAt` in the past
   fires immediately. Sleep/reboot therefore delays but never kills a run. This
@@ -251,9 +254,10 @@ unmet gap this product fills.
 ### Approvals & notifications
 
 Approval node → run enters `waiting_approval`; UI shows Approve / Reject with the
-node's message + upstream output; CLI: `nocturne approve <runId>`. Reject = pause.
+node's message + upstream output; REST: `POST /api/runs/:id/approve`; MCP:
+`approve_step`; or one tap in the canvas / phone console. Reject = pause.
 Notifications: optional `webhookUrl` in config — engine POSTs JSON on
-`waiting_approval`, `failed`, `completed` (works with ntfy/Discord/Slack).
+`waiting_approval`, `failed`, `completed`, `paused` (works with ntfy/Discord/Slack).
 
 ## 5. Auth model
 
@@ -298,28 +302,31 @@ policy Anthropic has signalled it may revise — worth stating plainly in the RE
   user grants tools in the inspector. `bypassPermissions` is behind a per-node
   "I understand" toggle rendered in warning color.
 - Workflow files carry no secrets, no absolute paths (validator-enforced).
-- Server binds `127.0.0.1` only.
+- Server binds `127.0.0.1` by default; `--lan` (token-gated) and `--remote` (E2E tunnel)
+  are explicit opt-ins — see §7.
 
 ## 7. Server API (daemon, port 5151)
 
 REST (JSON):
 ```
-GET    /api/health                        → {version, claudePath, authStatus}
+GET    /api/health                        → {ok, version}
 GET    /api/workflows                     → library list
 POST   /api/workflows                     → create/save (validated)
+GET    /api/workflows/new                 → fresh workflow scaffold
 GET    /api/workflows/:id
 PUT    /api/workflows/:id
 DELETE /api/workflows/:id
 POST   /api/workflows/import              → validate + return review summary
 GET    /api/workflows/:id/export          → download .nocturne.json
-POST   /api/runs                          → {workflowId, projectRoot, params} → start
+POST   /api/runs                          → {workflowId | workflow, projectRoot, params} → start
 GET    /api/runs?workflowId=…             → run list (status, cost, timings)
 GET    /api/runs/:id                      → full state incl. steps
+GET    /api/runs/:id/events               → persisted event log
 POST   /api/runs/:id/pause|resume|cancel
 POST   /api/runs/:id/approve              → {nodeId, approved, note}
 POST   /api/suggest                       → {hours?, max?, projectRoot?} → Retrace (§8)
 ```
-WebSocket `/ws`: server pushes `{type: run.updated|step.updated|run.log, …}` —
+WebSocket `/ws`: server pushes `{type: run.created|run.status|step.status|step.output|step.activity|run.log, …}` —
 drives live canvas run-mode. No client→server commands over WS (REST only).
 
 **LAN pairing (mobile companion).** Off by default (loopback bind). `nocturne serve --lan`
@@ -327,7 +334,9 @@ binds 0.0.0.0 and mints a persistent pairing token. Trust model: loopback reques
 tokenless; every non-loopback HTTP request and WS upgrade must present the token
 (`Authorization: Bearer`, or `?token=` on the first QR-opened load — the UI stashes it and
 strips the URL). `GET /api/pair` (loopback-only, so a phone can never mint its own invitation)
-returns `{token, port, addresses}`; the canvas renders it as a QR. The web UI ships as a PWA
+returns `{lan, token?, port?, addresses?, remote?}` — the LAN fields when `--lan`, and
+`remote: {url, name}` (the `…/app/#pair=…` invitation URL) when `--remote`; the canvas
+renders it as a QR. The web UI ships as a PWA
 (manifest + maskable icons) with a phone-first responsive layout. Clean-room design inspired by
 PairDrop's pairing UX; no code reuse.
 
@@ -449,9 +458,10 @@ Install steps: [integrations/README.md](integrations/README.md).
 
 ## 10. UI spec — the taste requirement
 
-**Stack:** Vite, React 19, TypeScript, `@xyflow/react` (infinite canvas), zustand
-(+ zundo for undo/redo), Tailwind v4, lucide-react icons, Inter variable
-(bundled via @fontsource-variable — fully offline).
+**Stack:** Vite, React 18, TypeScript, `@xyflow/react` (infinite canvas), zustand
+(+ zundo for undo/redo), hand-written `styles.css` (no Tailwind), a custom SVG icon
+set (`icons.tsx`), and the Fraunces Variable / Hanken Grotesk Variable / Martian Mono
+fonts via @fontsource-variable (bundled — fully offline).
 
 **Layout**
 ```
@@ -470,7 +480,7 @@ Install steps: [integrations/README.md](integrations/README.md).
 **Canvas feel (Figma-grade checklist)**
 - Wheel = zoom to cursor; space+drag / middle-drag = pan; pinch OK.
 - Dot grid that fades with zoom; snap-to-grid 8 px; smooth 120 ms ease on fit-view.
-- Node cards: 12 px radius, 1 px hairline border (`--n-border`), subtle elevation on
+- Node cards: 12 px radius, 1 px hairline border (`--rule`), subtle elevation on
   hover, 2 px accent ring on selection. Model shown as a small chip (haiku = teal,
   sonnet = violet, opus = amber, inherit = neutral). Type icon top-left.
 - Edges: 1.5 px bezier, animated dash flow **only** while a run is executing that edge.
@@ -479,16 +489,19 @@ Install steps: [integrations/README.md](integrations/README.md).
 - Micro-interactions ≤ 150 ms; no bounce easings; reduced-motion respected.
 - Undo/redo across node/edge/inspector edits (zundo, 100-step history).
 - Keyboard: Del remove · ⌘D duplicate · ⌘Z/⌘⇧Z · ⌘S save · ⌘E export · F fit · 1 reset zoom.
+- Step picker ships a built-in library of 22 curated step templates across 7 categories
+  (searchable, category-filtered); picking one pre-fills the agent node's prompt, model
+  tier, and minimal tool grant.
+- Run modal: choose projectRoot and fill workflow run inputs (defaults pre-filled) before
+  starting; saved workflows launchable from the library panel.
 
-**Design tokens (dark default)**
-```
---n-bg: #0d0e12       --n-surface: #16181d   --n-border: #262932
---n-text: #e8eaf0     --n-muted: #8b90a0
---n-accent: #7aa2ff   --n-ok: #4ade80  --n-warn: #fbbf24  --n-err: #f87171
-type: Inter var; UI 13/20; node title 13 semibold; mono (JetBrains Mono) for outputs
-spacing: 4-px base grid; radii: 12 (cards) / 8 (inputs) / 999 (chips)
-```
-Light theme = same tokens re-mapped; toggle in TopBar. No pure black/white anywhere.
+**Design tokens (ivory & clay, light-first)** — the real palette lives in
+`packages/ui/src/styles.css` (`:root`): a warm light theme — deep-ivory `--canvas`
+(#ECEAE1) under white `--surface` panels, ivory `--bg` (#F5F4EE), warm hairlines
+(`--rule` #E7E4DA), near-black warm ink (`--text` #1F1E1D) with `--muted` greys, and a
+single accent, Claude clay (`--accent` #CC785C, hover `--accent-bright` #D97757, tint
+`--accent-tint`). Status colors form a warm ramp (clay running · ochre waiting · sage
+done · brick failed). Full system: DESIGN.md. No pure black anywhere.
 
 **Import/export UX**
 - Export: TopBar button → pretty-printed `.nocturne.json` download; also copy-to-clipboard.
@@ -543,9 +556,10 @@ Layers, all runnable via `npm test` at root:
 ## 12. Milestones
 
 - **M1 (this build):** everything above marked v1 — core, engine, server, canvas UI,
-  import/export, limit-aware waits, approvals, Retrace (§8), the MCP server (§9),
+  import/export, limit-aware waits, approvals, LAN pairing, Nocturne Anywhere
+  (+ Android app, PWA), steps library, run inputs, Retrace (§8), the MCP server (§9),
   tests green end to end, live-run verified.
-- **M1.1:** Windows wake helper (`install-wake`), `UsageApiOracle`, light theme audit,
+- **M1.1:** Windows wake helper (`install-wake`), `UsageApiOracle`,
   publish `nocturne` + `@nocturne/mcp` to npm, a co-hosted `/mcp` HTTP endpoint,
   README + demo GIF, community-workflows folder.
 - **M2:** ~~conditional nodes~~ (shipped in v1 as deterministic if/else — see §3; kept out of

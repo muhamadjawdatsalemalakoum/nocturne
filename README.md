@@ -25,6 +25,7 @@ Anthropic split durability and control across two surfaces that don't overlap:
 | Durable multi-step orchestration with waits + resume | partial | ❌ | ✅ |
 | Visual design surface | ❌ | ❌ | ✅ |
 | Turns your own session history into workflows | ❌ | ❌ | ✅ |
+| Peer-to-peer mobile companion — pair by QR, any network, E2E-encrypted | ❌ | ❌ | ✅ |
 
 Native Claude Code workflows are autonomous **within a session** but die on exit, can't durably wait,
 and can't pause for input and resume. Nocturne is the durability layer on top: **durable where the
@@ -56,10 +57,11 @@ feature. Come back to a completed pipeline, every step green with its output and
 
 ![A completed run](docs/images/06-completed.png)
 
-Other journeys — **human approval gates** ([08](docs/images/08-approval.png)), the **import review
-dialog** that shows what a shared workflow can do before it runs
-([09](docs/images/09-import-review.png)), and the **Figma-style minimizable panels**
-([10](docs/images/10-minimized.png)) — are on the [website](https://muhamadjawdatsalemalakoum.github.io/nocturne/).
+Other journeys — **human approval gates** ([08](docs/images/08-approval.png)) and the **import
+review dialog** that shows what a shared workflow can do before it runs
+([09](docs/images/09-import-review.png)) — are on the
+[website](https://muhamadjawdatsalemalakoum.github.io/nocturne/), and the **Figma-style
+minimizable panels** are here: [10](docs/images/10-minimized.png).
 
 ## Retrace — it writes your workflows for you
 
@@ -149,7 +151,7 @@ a coffee shop, LTE behind carrier NAT. No account, no port-forwarding, no server
 
 | Pair by QR — Anywhere or this Wi-Fi | Monitor from your phone |
 |---|---|
-| ![The Pair device modal with the Anywhere QR invitation](docs/images/12-pair.png) | ![A live run on a phone](docs/images/13-mobile-run.png) |
+| ![The Pair device modal with the Anywhere QR invitation](docs/images/12-pair.png) | ![A run at its approval gate on a phone, connected direct P2P](docs/images/13-mobile-run.png) |
 
 **How Anywhere works** (and why the claim survives scrutiny):
 
@@ -193,11 +195,18 @@ session continuation) · `wait` (`duration` / `until HH:MM` / `limitReset`) · `
 edges. Prompts hand off with `{{steps.<id>.output}}` and take run inputs via `{{params.name}}`.
 
 **Branch like a flowchart.** A condition node checks any upstream output or run input with a
-deterministic predicate — contains, equals, regex, numeric compare — and routes the run down its
-**✓ true** or **✕ false** edge; the untaken branch is skipped, joins just work. Test → *all green?*
-→ ship, else fix. No LLM in the control plane, so branching is reproducible:
+deterministic predicate — contains, equals, regex, numeric compare, not-empty, each with a negated
+form — and routes the run down its **✓ true** or **✕ false** edge; the untaken branch is skipped,
+joins just work. Test → *all green?* → ship, else fix. No LLM in the control plane, so branching
+is reproducible:
 
 ![An if/else release gate: test, then ship or fix](docs/images/15-condition.png)
+
+**Fill in the blanks at run time.** Declare run inputs — a name, a hint, an optional default —
+and the Run dialog asks for them as a form; prompts reference them anywhere with
+`{{params.name}}`. One saved workflow serves every repo and every ticket:
+
+![The run-inputs editor](docs/images/16-run-inputs.png)
 
 See [SPEC.md](SPEC.md) for the full format, execution semantics, and architecture.
 
@@ -207,8 +216,13 @@ See [SPEC.md](SPEC.md) for the full format, execution semantics, and architectur
 packages/core     Pure TS: schema (zod), validation, DAG utils, template engine, import/export.
 packages/engine   The daemon core: run executor, crash-safe checkpoint store, wait scheduler,
                   limit oracle, the claude CLI adapter (env sanitization + spawn), REST + WS.
-packages/server   Express + ws daemon; serves the UI and the API.
-packages/ui       Vite + React + React Flow infinite canvas.
+packages/server   Express + ws daemon; serves the UI, the API, and the Anywhere bridge.
+packages/ui       Vite + React + React Flow infinite canvas; also builds the phone console.
+packages/remote   Nocturne Anywhere: pairing secrets, HKDF/AES-256-GCM E2E crypto, relay +
+                  WebRTC transports — shared by the daemon, the console, and (as a byte-exact
+                  Kotlin port) the Android app.
+packages/mcp      The MCP server: a thin adapter over the daemon's REST API for Claude Code,
+                  Claude Desktop, and any MCP client.
 e2e/              Playwright: drives the real UI against the daemon + a scripted fake claude.
 ```
 
@@ -234,7 +248,7 @@ Key design points:
 
 ```bash
 npm test                                   # full unit + integration suite (vitest)
-npm run typecheck                          # core/engine/server/remote
+npm run typecheck                          # core/engine/server/mcp/remote
 npm --workspace @nocturne/ui run typecheck # UI
 npx playwright test --config e2e/playwright.config.ts   # end-to-end
 npm run e2e:anywhere                       # LIVE Anywhere proof: real daemon + real console
@@ -249,9 +263,10 @@ fan-out/join are all verified deterministically without touching a real subscrip
 
 ## Status
 
-v1: canvas, engine, durable limit-aware waits, approvals, conditions (if/else), import/export,
-Retrace (workflow suggestions from your session history), MCP server + Claude Code plugin,
-mobile companion with **Nocturne Anywhere** (internet-wide E2E-encrypted P2P), full test suite green.
+v1: canvas, engine, durable limit-aware waits, approvals, conditions (if/else), run inputs,
+the steps library (22 steps, 7 categories), import/export, Retrace (workflow suggestions from
+your session history), MCP server + Claude Code plugin, mobile companion with **Nocturne
+Anywhere** (internet-wide E2E-encrypted P2P), full test suite green.
 Roadmap: OS-level wake helpers for machine-asleep waits, iOS companion, a shared workflow gallery.
 
 ## License

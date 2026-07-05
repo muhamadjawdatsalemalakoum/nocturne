@@ -17,9 +17,9 @@ start from a chat keeps going after that chat ends — the whole point.
 `list_runs` · `get_run` · `approve_step` · `pause_run` · `resume_run` · `cancel_run` ·
 `suggest_workflows` (Retrace)
 
-`run_workflow` takes a `projectRoot` (the repo the agents work in) and a saved `workflowId` or an
-inline workflow; it returns a `runId` immediately and the run continues unattended. Poll it with
-`get_run`.
+`run_workflow` takes a `projectRoot` (the repo the agents work in), a saved `workflowId` or an
+inline workflow, and optional `params` (values for the workflow's `{{params}}` run inputs); it
+returns a `runId` immediately and the run continues unattended. Poll it with `get_run`.
 
 ---
 

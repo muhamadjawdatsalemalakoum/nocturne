@@ -1,0 +1,21 @@
+# Nocturne
+
+> Nocturne is a free, open-source (MIT) workflow automation tool and scheduler for Claude Code. You design multi-agent pipelines on a visual canvas and run them unattended — overnight runs that hit the Claude usage limit checkpoint, wait for the window to reset, and resume exactly where they stopped. It runs locally, on your existing Claude subscription (flat-rate, no API metering), in your own environment, with your own permission rules.
+
+Key facts:
+
+- Each workflow step runs as its own Claude Code subagent with a per-step model (Haiku/Sonnet/Opus), tool grants, permission mode, retry policy, and run count (×1–20).
+- Node types: start, agent, wait (duration / until-time / usage-limit reset), human approval gate, deterministic if/else condition (contains, equals, regex, numeric compare — no LLM in the control plane), end. Fan-out = multiple outgoing edges; AND-join = multiple incoming edges.
+- Steps hand off output with {{steps.id.output}}; workflows declare run inputs filled at launch via {{params.name}}.
+- Durable by construction: atomic checkpoints + append-only event log; a crash or SIGKILL re-runs at most the in-flight step; timed waits persist as absolute wake times.
+- Retrace reads your local Claude Code session history (~/.claude/projects, redacted locally) and drafts reusable workflows from what you actually did.
+- The exported .nocturne.json file is the canvas document and the library entry — portable, no absolute paths, secret-scan warnings before sharing.
+- MCP server + Claude Code plugin: install with `/plugin marketplace add muhamadjawdatsalemalakoum/nocturne` then `/plugin install nocturne@nocturne`; 12 tools (run_workflow with params, get_run, approve_step, pause/resume/cancel, suggest_workflows…). Claude Desktop supported via a one-click .mcpb bundle.
+- Mobile: the first Claude Code plugin with a peer-to-peer mobile companion. `nocturne serve --remote` pairs a phone by QR from ANY network (LTE/CGNAT included) — end-to-end encrypted (AES-256-GCM, keys derived from a secret that travels only in the QR), rendezvous over public relays carrying only ciphertext, automatic upgrade to a direct WebRTC P2P channel when networks allow. No account, no hosted server. Native Android app included; `--lan` gives direct same-Wi-Fi pairing.
+- Tested: 219 tests including an independent audit that SIGKILLs the real daemon mid-run and watches it resume, and a live end-to-end proof that pairs phone and daemon through real public relays.
+
+Links:
+
+- [Website](https://muhamadjawdatsalemalakoum.github.io/nocturne/): features, screenshots, full user journey
+- [GitHub repository](https://github.com/muhamadjawdatsalemalakoum/nocturne): source, README, quick start
+- [SPEC](https://github.com/muhamadjawdatsalemalakoum/nocturne/blob/main/SPEC.md): file format, execution semantics, Anywhere wire protocol and threat model

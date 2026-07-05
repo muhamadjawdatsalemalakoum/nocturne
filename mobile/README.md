@@ -27,7 +27,7 @@ test vectors: the same
 byte-for-byte by the JVM unit tests here **and** by `packages/remote/test/vectors.test.ts` — if
 either side drifts, a test goes red.
 
-**Get the APK:** every change to `mobile/` builds `nocturne-android.apk` in GitHub Actions
+**Get the APK:** every change to `mobile/android/` on main builds `nocturne-android.apk` in GitHub Actions
 (*android-apk* workflow → artifact; unit tests gate the build), and tagged releases attach it.
 Sideload it (enable "install unknown apps"), start the daemon with `--remote` and/or `--lan`, tap
 the phone icon in the canvas toolbar, and scan.
