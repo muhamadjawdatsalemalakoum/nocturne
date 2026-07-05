@@ -90,7 +90,6 @@
      dawn horizon that dissolves into the ivory page below. */
   header.hero { padding:86px 0 0; text-align:center;
     border-radius:0 0 clamp(30px, 5vw, 68px) clamp(30px, 5vw, 68px);
-    box-shadow:0 22px 44px -20px rgba(36,27,21,.28);
     background:
     radial-gradient(1100px 480px at 50% -120px, #262019, transparent 70%),
     linear-gradient(180deg, #100f0e, #141311 55%, #1a1613 82%, #241b15 100%); }
@@ -110,6 +109,8 @@
      sun-glow breathing at the horizon line. */
   header.hero::after { content:""; position:absolute; left:0; right:0; bottom:0; height:420px; pointer-events:none; z-index:2;
     background:
+      radial-gradient(340px 190px at 0% 100%, rgba(52,34,24,.6), transparent 72%),
+      radial-gradient(340px 190px at 100% 100%, rgba(52,34,24,.6), transparent 72%),
       radial-gradient(72% 240px at 50% 104%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 74%),
       linear-gradient(180deg,
         rgba(20,19,17,0)      0%,
@@ -123,8 +124,8 @@
         rgba(182,128,94,.98) 77%,
         rgba(210,163,130,.99) 83%,
         rgb(228,196,169)     89%,
-        rgb(238,215,192)     94%,
-        rgb(243,228,210)    100%); }
+        rgb(240,222,203)     94%,
+        var(--bg)           100%); }
   /* the occasional meteor — one thin streak, long pauses */
   .hero-sky .hshoot { position:absolute; top:16%; left:-12%; width:150px; height:1.5px; border-radius:2px; opacity:0;
     background:linear-gradient(90deg, transparent, rgba(245,244,238,.9)); transform:rotate(9deg);
