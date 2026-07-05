@@ -66,7 +66,13 @@
   .eyebrow { font-family:var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); font-weight:500; }
 
   /* nav */
-  nav { position:sticky; top:0; z-index:20; background:rgba(245,244,238,.82); backdrop-filter:blur(12px); border-bottom:1px solid var(--rule); }
+  nav { position:sticky; top:0; z-index:20; background:rgba(245,244,238,.82); backdrop-filter:blur(12px); border-bottom:1px solid var(--rule);
+    transition:background .35s ease, border-color .35s ease; }
+  /* over the night hero the nav is dark glass; it turns ivory at dawn (scroll) */
+  nav.over-night { background:rgba(16,15,14,.68); border-bottom-color:rgba(245,244,238,.1); }
+  nav.over-night .brand, nav.over-night a.nl { color:#f5f4ee; }
+  nav.over-night a.nl:hover { color:#fff; }
+  nav.over-night .brand svg circle:last-of-type { fill:#12100f; }
   nav .wrap { display:flex; align-items:center; gap:16px; height:60px; }
   .brand { display:flex; align-items:center; gap:10px; font-family:var(--serif); font-size:21px; font-weight:500; }
   .brand svg { width:24px; height:24px; }
@@ -80,15 +86,31 @@
   .btn.primary:hover { background:var(--accent-bright); border-color:var(--accent-bright); color:#fff; }
   .btn.sm { height:36px; padding:0 14px; font-size:14px; }
 
-  /* hero */
-  header.hero { padding:76px 0 30px; text-align:center; background:radial-gradient(1200px 400px at 50% -80px, #fff, transparent); }
-  header.hero h1 { font-size:clamp(38px,6vw,68px); }
-  header.hero .lede { max-width:720px; margin:22px auto 0; font-size:clamp(17px,2.2vw,21px); color:var(--muted); text-wrap:pretty; }
-  .lede strong, .sec-head p strong { color:var(--text); font-weight:600; }
-  header.hero .cta .btn:not(.primary) { border-color:var(--rule-strong); background:var(--surface-2); }
+  /* hero — the night itself: the stack's sky, grown expansive. It ends in a
+     dawn horizon that dissolves into the ivory page below. */
+  header.hero { padding:86px 0 0; text-align:center; background:
+    radial-gradient(1100px 480px at 50% -120px, #262019, transparent 70%),
+    linear-gradient(180deg, #100f0e, #141311 55%, #1a1613 82%, #241b15 100%); }
+  header.hero h1 { font-size:clamp(38px,6vw,68px); color:#f5f4ee; }
+  header.hero .eyebrow { color:#e8b9a5; }
+  header.hero .lede { max-width:720px; margin:22px auto 0; font-size:clamp(17px,2.2vw,21px); color:rgba(245,244,238,.72); text-wrap:pretty; }
+  header.hero .lede strong { color:#f5f4ee; }
+  .sec-head p strong { color:var(--text); font-weight:600; }
+  header.hero .cta .btn:not(.primary) { border-color:rgba(245,244,238,.22); background:rgba(245,244,238,.06); color:#f5f4ee; }
+  header.hero .cta .btn:not(.primary):hover { background:rgba(245,244,238,.12); border-color:rgba(245,244,238,.38); }
   header.hero .cta { display:flex; gap:12px; justify-content:center; margin-top:30px; flex-wrap:wrap; }
-  .hero-shot { max-width:calc(var(--maxw) - 40px); margin:52px auto 0; padding:0 24px; }
-  .hero-shot img { width:100%; height:auto; border-radius:var(--r); border:1px solid var(--rule); box-shadow:var(--shadow-lg); display:block; }
+  .hero-shot { max-width:calc(var(--maxw) - 40px); margin:52px auto 0; padding:0 24px 64px; }
+  .hero-shot img { width:100%; height:auto; border-radius:var(--r); border:1px solid rgba(245,244,238,.14); display:block;
+    box-shadow:0 30px 90px rgba(0,0,0,.55), 0 0 60px color-mix(in srgb, var(--accent) 16%, transparent); }
+  /* dawn: the last breath of the hero fades into the ivory morning */
+  header.hero::after { content:""; position:absolute; left:0; right:0; bottom:0; height:150px; pointer-events:none; z-index:2;
+    background:linear-gradient(180deg, transparent, color-mix(in srgb, var(--accent) 7%, var(--bg)) 62%, var(--bg)); }
+  /* the occasional meteor — one thin streak, long pauses */
+  .hero-sky .hshoot { position:absolute; top:16%; left:-12%; width:150px; height:1.5px; border-radius:2px; opacity:0;
+    background:linear-gradient(90deg, transparent, rgba(245,244,238,.9)); transform:rotate(9deg);
+    animation:shoot 10s ease-in 3s infinite; }
+  @keyframes shoot { 0%, 92% { opacity:0; transform:translate(0,0) rotate(9deg); }
+    94% { opacity:1; } 100% { opacity:0; transform:translate(46vw, 7vw) rotate(9deg); } }
 
   /* generic section */
   section { padding:64px 0; }
@@ -278,9 +300,9 @@
     filter:drop-shadow(0 0 26px color-mix(in srgb, var(--accent) 38%, transparent));
     animation:moonDrift 46s ease-in-out infinite; }
   @keyframes moonDrift { 0%,100% { transform:translate(0,0) rotate(-8deg); } 50% { transform:translate(-26px,14px) rotate(4deg); } }
-  .hero-sky .hstar { position:absolute; width:3px; height:3px; border-radius:50%; background:var(--accent);
+  .hero-sky .hstar { position:absolute; width:3px; height:3px; border-radius:50%; background:#f5f4ee;
     opacity:0; animation:twinkle var(--tw,4s) ease-in-out infinite; animation-delay:var(--td,0s); }
-  .hero-sky .hstar.big { width:4px; height:4px; box-shadow:0 0 8px color-mix(in srgb, var(--accent) 60%, transparent); }
+  .hero-sky .hstar.big { width:4px; height:4px; box-shadow:0 0 8px rgba(245,244,238,.7); }
   @keyframes twinkle { 0%,100% { opacity:0; transform:scale(.6); } 50% { opacity:var(--to,.5); transform:scale(1); } }
   header.hero h1 em { font-style:normal; background:linear-gradient(105deg, var(--accent) 10%, #a05a41 45%, var(--accent-bright) 90%);
     -webkit-background-clip:text; background-clip:text; color:transparent; }
@@ -1321,7 +1343,16 @@
     });
   }
 
-  aurora(document.querySelector('header.hero'), 1);
+  // nav: dark glass while the night hero is under it, ivory after dawn
+  var nav = document.querySelector('nav'), heroEl = document.querySelector('header.hero');
+  if (nav && heroEl) {
+    var navSync = function () { nav.classList.toggle('over-night', window.scrollY < heroEl.offsetHeight - 64); };
+    navSync();
+    window.addEventListener('scroll', navSync, { passive: true });
+    window.addEventListener('resize', navSync);
+  }
+
+  aurora(document.querySelector('header.hero'), 1.25);
   aurora(document.querySelector('#more'), 0.7);
   flow(document.querySelector('#why'));
   flow(document.querySelector('#features'));
@@ -1456,8 +1487,8 @@
     var sky = document.createElement('div');
     sky.className = 'hero-sky';
     sky.setAttribute('aria-hidden', 'true');
-    var moonSvg = '<svg class="hmoon" viewBox="0 0 24 24"><defs><clipPath id="hm"><circle cx="12" cy="12" r="9"/></clipPath></defs><circle cx="12" cy="12" r="9" fill="#cc785c"/><circle cx="17.5" cy="8.5" r="8.6" fill="#f9f7f2" clip-path="url(#hm)"/></svg>';
-    var stars = '';
+    var moonSvg = '<svg class="hmoon" viewBox="0 0 24 24"><defs><clipPath id="hm"><circle cx="12" cy="12" r="9"/></clipPath></defs><circle cx="12" cy="12" r="9" fill="#cc785c"/><circle cx="17.5" cy="8.5" r="8.6" fill="#12100f" clip-path="url(#hm)"/></svg>';
+    var stars = '<span class="hshoot"></span>';
     for (var si = 0; si < 26; si++) {
       var big = si % 6 === 0;
       stars += '<span class="hstar' + (big ? ' big' : '') + '" style="left:' + (2 + ((si * 37) % 96)) + '%;top:' + (3 + ((si * 23) % 46)) + '%;--tw:' + (3 + (si % 5)) + 's;--td:' + ((si * 0.47) % 4).toFixed(2) + 's;--to:' + (big ? 0.75 : 0.4) + '"></span>';
