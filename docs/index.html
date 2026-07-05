@@ -362,8 +362,10 @@
      (It lives in #why and hangs UP into the hero, so hero overflow can't clip it.) */
   /* no hairline under the night, and the section opens on the same ivory the
      corner notches reveal — the morning owns the space the curve gives it */
-  #why { padding-top:150px; border-top:none; background:linear-gradient(180deg, var(--bg), var(--surface-2)); }
-  .threshold { position:absolute; top:0; left:50%; transform:translate(-50%,-54%); z-index:2; pointer-events:none; }
+  #why { padding-top:210px; border-top:none; background:linear-gradient(180deg, var(--bg), var(--surface-2)); }
+  /* the wire BEGINS at the seam (end of the hero) and the moon hangs down into
+     the morning — it no longer straddles the intersection */
+  .threshold { position:absolute; top:0; left:50%; transform:translate(-50%,-5%); z-index:2; pointer-events:none; }
   .threshold svg { display:block; overflow:visible; transform-origin:32px 0; animation:thSway 7s ease-in-out infinite; }
   @keyframes thSway { 0%,100% { transform:rotate(-2.2deg); } 50% { transform:rotate(2.2deg); } }
   .threshold .thw { animation:thDash 1.3s linear infinite; }
