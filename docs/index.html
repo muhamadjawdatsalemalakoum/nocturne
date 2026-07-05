@@ -104,8 +104,16 @@
   header.hero .cta .btn:not(.primary):hover { background:rgba(245,244,238,.12); border-color:rgba(245,244,238,.38); }
   header.hero .cta { display:flex; gap:12px; justify-content:center; margin-top:30px; flex-wrap:wrap; }
   .hero-shot { max-width:calc(var(--maxw) - 40px); margin:52px auto 0; padding:0 24px 350px; }
-  .hero-shot img { width:100%; height:auto; border-radius:var(--r); border:1px solid rgba(245,244,238,.14); display:block; background:#1d1a17;
+  .hero-frame { position:relative; }
+  .hero-shot img.hero-desk { width:100%; height:auto; border-radius:var(--r); border:1px solid rgba(245,244,238,.14); display:block; background:#1d1a17;
     box-shadow:0 30px 90px rgba(0,0,0,.55), 0 0 60px color-mix(in srgb, var(--accent) 16%, transparent); }
+  /* the mobile companion, glowing over the desktop's corner — both surfaces at once */
+  .hero-shot img.hero-phone { position:absolute; right:-6px; bottom:-44px; width:158px; height:auto; z-index:4;
+    border-radius:26px; border:5px solid #14110f; background:#14110f;
+    box-shadow:0 26px 58px rgba(0,0,0,.6), 0 0 42px color-mix(in srgb, var(--accent) 24%, transparent);
+    animation:phoneFloat 6.5s ease-in-out infinite; }
+  @keyframes phoneFloat { 0%,100% { transform:translateY(0) rotate(0); } 50% { transform:translateY(-9px) rotate(-1deg); } }
+  @media(max-width:640px){ .hero-shot img.hero-phone { width:110px; right:2px; bottom:-24px; border-width:4px; } }
   /* dawn: entirely BELOW the shot. A tall, eased 13-stop ramp — night warming
      through ember to ivory so gradually no seam survives — plus a wide soft
      sun-glow breathing at the horizon line. */
@@ -334,7 +342,7 @@
      (It lives in #why and hangs UP into the hero, so hero overflow can't clip it.) */
   /* no hairline under the night, and the section opens on the same ivory the
      corner notches reveal — the morning owns the space the curve gives it */
-  #why { padding-top:118px; border-top:none; background:linear-gradient(180deg, var(--bg), var(--surface-2)); }
+  #why { padding-top:150px; border-top:none; background:linear-gradient(180deg, var(--bg), var(--surface-2)); }
   .threshold { position:absolute; top:0; left:50%; transform:translate(-50%,-54%); z-index:2; pointer-events:none; }
   .threshold svg { display:block; overflow:visible; transform-origin:32px 0; animation:thSway 7s ease-in-out infinite; }
   @keyframes thSway { 0%,100% { transform:rotate(-2.2deg); } 50% { transform:rotate(2.2deg); } }
@@ -342,8 +350,15 @@
   @keyframes thDash { from { stroke-dashoffset:10; } to { stroke-dashoffset:0; } }
   .threshold .thp { animation:thDrop 4.2s cubic-bezier(.5,0,.6,1) infinite; }
   @keyframes thDrop { 0% { cy:2px; opacity:0; } 9% { opacity:1; } 60% { cy:84px; opacity:1; } 68% { cy:84px; opacity:0; } 100% { cy:84px; opacity:0; } }
+  /* the moon always breathes a soft glow, and flares brighter when the pulse lands */
   .threshold .thm { animation:thGlow 4.2s ease-in-out infinite; }
-  @keyframes thGlow { 0%,52% { filter:none; } 64% { filter:drop-shadow(0 0 12px rgba(204,120,92,.85)); } 82%,100% { filter:none; } }
+  @keyframes thGlow {
+    0%   { filter:drop-shadow(0 0 5px rgba(204,120,92,.4)); }
+    45%  { filter:drop-shadow(0 0 9px rgba(204,120,92,.6)); }
+    52%  { filter:drop-shadow(0 0 5px rgba(204,120,92,.4)); }
+    64%  { filter:drop-shadow(0 0 18px rgba(204,120,92,.95)); }
+    82%  { filter:drop-shadow(0 0 7px rgba(204,120,92,.5)); }
+    100% { filter:drop-shadow(0 0 5px rgba(204,120,92,.4)); } }
   @media (prefers-reduced-motion: reduce){
     .threshold svg, .threshold .thw, .threshold .thp, .threshold .thm { animation:none !important; }
     .threshold .thp { opacity:0; }
@@ -481,7 +496,12 @@
       <a class="btn" href="#journey">See how it works</a>
     </div>
   </div>
-  <div class="hero-shot"><img src="images/07-waiting-reset.png" width="1280" height="720" fetchpriority="high" decoding="async" alt="A Nocturne run paused on a usage-limit-reset wait, ready to resume" /></div>
+  <div class="hero-shot">
+    <div class="hero-frame">
+      <img class="hero-desk" src="images/07-waiting-reset.png" width="1280" height="720" fetchpriority="high" decoding="async" alt="A Nocturne run paused on a usage-limit-reset wait, ready to resume" />
+      <img class="hero-phone" src="images/13-mobile-run.png" width="1170" height="2532" loading="lazy" decoding="async" alt="The same run monitored from the phone — connected peer-to-peer, approve from anywhere" />
+    </div>
+  </div>
 </header>
 
 <!-- WHY -->
@@ -1333,17 +1353,22 @@
   }
 
   // ---- the ghost canvas: a faint workflow running behind the story ----
-  function flow(host) {
+  function flow(host, pendant) {
     mount(host, function (W, H) {
       var gutterL = 0.035, gutterR = 0.8;
-      var spots = [
-        [gutterL, 0.1], [gutterR, 0.16], [gutterL + 0.03, 0.42], [gutterR + 0.04, 0.5],
-        [gutterL, 0.74], [gutterR, 0.82], [0.42, 0.04], [0.5, 0.92],
-      ];
+      // pendant variant (#why): keep the top-center clear so the lowered moon
+      // has room to breathe — no ghost card under it, only the side gutters.
+      var spots = pendant
+        ? [[gutterL, 0.14], [gutterR, 0.18], [gutterL + 0.03, 0.46], [gutterR + 0.04, 0.52],
+           [gutterL, 0.78], [gutterR, 0.84], [0.5, 0.94]]
+        : [[gutterL, 0.1], [gutterR, 0.16], [gutterL + 0.03, 0.42], [gutterR + 0.04, 0.5],
+           [gutterL, 0.74], [gutterR, 0.82], [0.42, 0.04], [0.5, 0.92]];
       var nodes = spots.map(function (s, i) {
         return { fx: s[0], fy: s[1], w: 148 + (i % 3) * 26, h: 58, p: i * 1.31, bob: 5 + (i % 3) * 2 };
       });
-      var edges = [[0, 2], [2, 4], [1, 3], [3, 5], [6, 1], [0, 6], [4, 7], [7, 5]];
+      var edges = pendant
+        ? [[0, 2], [2, 4], [1, 3], [3, 5], [4, 6], [6, 5]]
+        : [[0, 2], [2, 4], [1, 3], [3, 5], [6, 1], [0, 6], [4, 7], [7, 5]];
       return { nodes: nodes, edges: edges };
     }, function (ctx, t, W, H, s) {
       var pos = s.nodes.map(function (n) {
@@ -1407,8 +1432,8 @@
 
   aurora(document.querySelector('header.hero'), 1.25);
   aurora(document.querySelector('#more'), 0.7);
-  flow(document.querySelector('#why'));
-  flow(document.querySelector('#features'));
+  flow(document.querySelector('#why'), true);
+  flow(document.querySelector('#features'), false);
 })();
 </script>
 
